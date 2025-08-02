@@ -3,7 +3,7 @@ import logging
 from fastapi import APIRouter
 from fastapi.responses import RedirectResponse
 
-from src import redis_client
+from src.settings import redis_client
 
 router = APIRouter(prefix="/common", tags=["Common"])
 

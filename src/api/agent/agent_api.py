@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import APIRouter, FastAPI
 from sqlmodel import SQLModel
 
-from src import engine
+from src.settings import engine
 from src.base.model.base_agent_mess_model import BaseAgentMessModel
 from src.cache.agent_state_cache_wrapper import agent_state_cache_wrapper
 from src.models.agent.agent_state_model import AgentStateModel

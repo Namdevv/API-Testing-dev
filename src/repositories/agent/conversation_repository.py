@@ -9,7 +9,7 @@ from langchain_core.messages import (
 from langchain_core.messages.tool import ToolMessage
 from sqlmodel import Field, Session, SQLModel, select
 
-from src import engine
+from src.settings import engine
 from src.models.agent.agent_state_for_db_model import AgentStateForDbModel
 from src.models.agent.agent_state_model import AgentStateModel
 

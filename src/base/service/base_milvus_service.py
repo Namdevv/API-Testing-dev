@@ -5,7 +5,7 @@ import logging
 from pydantic import BaseModel, Field, model_validator
 from pymilvus import connections, utility
 
-from src import MILVUS_TOKEN, MILVUS_URI
+from src.settings import MILVUS_TOKEN, MILVUS_URI
 
 
 class BaseMilvusService(BaseModel):
