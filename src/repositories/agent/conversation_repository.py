@@ -9,9 +9,9 @@ from langchain_core.messages import (
 from langchain_core.messages.tool import ToolMessage
 from sqlmodel import Field, Session, SQLModel, select
 
-from src.settings import engine
 from src.models.agent.agent_state_for_db_model import AgentStateForDbModel
 from src.models.agent.agent_state_model import AgentStateModel
+from src.settings import get_engine
 
 
 class ConversationRepository(AgentStateForDbModel, SQLModel, table=True):
@@ -23,7 +23,7 @@ def load_conversations(session_id: str, user_id: str) -> AgentStateModel | None:
     Retrieve a conversation by session ID and user ID.
     """
     all_records = None
-    with Session(engine) as session:
+    with Session(get_engine()) as session:
         all_records = session.exec(
             select(ConversationRepository).where(
                 ConversationRepository.session_id == session_id,
@@ -67,7 +67,7 @@ def save_conversation(
     """
 
     # Save to database
-    with Session(engine) as session:
+    with Session(get_engine()) as session:
         for message in agent_state.messages[-number_of_last_messages:]:
             if isinstance(message, BaseMessage):
                 message_dict = message.model_dump()

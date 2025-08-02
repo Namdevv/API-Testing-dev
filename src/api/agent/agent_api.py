@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import APIRouter, FastAPI
 from sqlmodel import SQLModel
 
-from src.settings import engine
+from src.settings import get_engine
 from src.base.model.base_agent_mess_model import BaseAgentMessModel
 from src.cache.agent_state_cache_wrapper import agent_state_cache_wrapper
 from src.models.agent.agent_state_model import AgentStateModel
@@ -21,7 +21,7 @@ ai_agent = None  # Global variable to hold the AI agent instance
 async def lifespan(app: FastAPI):
     global ai_agent
 
-    SQLModel.metadata.create_all(engine)
+    SQLModel.metadata.create_all(get_engine())
     ai_agent = AIAgent(
         collection_name="e_commerce_ai",
         llm_temperature=0.1,

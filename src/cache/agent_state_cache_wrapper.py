@@ -3,12 +3,12 @@ from functools import wraps
 
 from pydantic import validate_call
 
-from src.cache import redis_client
 from src.models.agent.agent_state_model import AgentStateModel
 from src.repositories.agent.conversation_repository import (
     load_conversations,
     save_conversation,
 )
+from src.settings import get_redis_client
 
 
 def agent_state_cache_wrapper(func):
@@ -16,7 +16,7 @@ def agent_state_cache_wrapper(func):
     @validate_call
     def wrapper(agent_state: AgentStateModel):
         cache_key = f"conversation[{agent_state.user_id}:{agent_state.session_id}]"
-        cached_agent_state = redis_client.get(cache_key)
+        cached_agent_state = get_redis_client().get(cache_key)
 
         if cached_agent_state:  # Cache hit
             logging.info(f"Cache hit for {cache_key}")
@@ -41,7 +41,7 @@ def agent_state_cache_wrapper(func):
         result = func(cached_agent_state)
 
         logging.info(f"Cached {cache_key}")
-        redis_client.setex(cache_key, 600, result.model_dump_json())
+        get_redis_client().setex(cache_key, 600, result.model_dump_json())
         number_of_added_messages = len(result.messages) - len(
             cached_agent_state.messages
         )

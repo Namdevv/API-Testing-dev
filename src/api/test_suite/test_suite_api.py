@@ -3,7 +3,7 @@ import logging
 from fastapi import APIRouter
 from fastapi.responses import RedirectResponse
 
-from src.settings import redis_client
+from src.settings import get_redis_client
 
 router = APIRouter(prefix="/test_suite", tags=["TestSuit"])
 
@@ -24,5 +24,5 @@ def read_root():
 #     Endpoint to clear the Redis cache.
 #     """
 #     logging.info("Clearing Redis cache...")
-#     redis_client.flushdb()
+#     get_redis_client().flushdb()
 #     return {"status": "Cache cleared"}
