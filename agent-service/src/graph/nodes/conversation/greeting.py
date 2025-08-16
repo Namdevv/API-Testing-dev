@@ -9,7 +9,7 @@ with open("src/services/ai_agent/nodes/prompts/greeting_v1.md", "r") as f:
 
 
 class Greeting(BaseAgentService):
-    agent_prompt: str = prompt
+    system_prompt: str = prompt
     llm_model: str = "gemini-2.0-flash-lite"
 
     def __call__(self, state) -> Dict[str, Any]:

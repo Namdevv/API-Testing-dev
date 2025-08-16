@@ -8,7 +8,7 @@ from .base_llm_service import BaseLlmService
 
 class BaseAgentService(BaseLlmService):
 
-    agent_prompt: str = Field(
+    system_prompt: str = Field(
         default="",
         description="Prompt template for the agent. If not provided, a default prompt will be used.",
     )
@@ -20,7 +20,7 @@ class BaseAgentService(BaseLlmService):
     def __after_init(self):
         self._prompt = ChatPromptTemplate.from_messages(
             [
-                ("system", self.agent_prompt),
+                ("system", self.system_prompt),
                 MessagesPlaceholder(variable_name="chat_history"),
                 ("human", "{input}"),
             ]

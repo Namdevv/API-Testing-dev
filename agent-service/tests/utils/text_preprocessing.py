@@ -1,0 +1,55 @@
+from src.utils.text_preprocessing import (
+    lowercase_text,
+    normalize_unicode,
+    remove_extra_whitespace,
+    remove_punctuation,
+    remove_stopwords,
+)
+
+
+def test_remove_extra_whitespace():
+    assert remove_extra_whitespace("  Hello   World!  ") == "Hello World!"
+    assert remove_extra_whitespace("  This   is a test.  ") == "This is a test."
+    assert remove_extra_whitespace("NoExtraSpaces") == "NoExtraSpaces"
+    assert (
+        remove_extra_whitespace("  Leading and trailing spaces   ")
+        == "Leading and trailing spaces"
+    )
+    assert remove_extra_whitespace("") == ""
+
+
+def test_remove_punctuation():
+    assert remove_punctuation("Hello, World!") == "Hello World"
+    assert remove_punctuation("This is a test.") == "This is a test"
+    assert remove_punctuation("NoPunctuation") == "NoPunctuation"
+    assert (
+        remove_punctuation("  Leading and trailing punctuation...   ")
+        == "  Leading and trailing punctuation   "
+    )
+
+
+def test_remove_stopwords():
+    stopwords = {"is", "a", "the"}
+    assert remove_stopwords("This is a test.", stopwords) == "This test."
+    assert remove_stopwords("No stopwords here.", stopwords) == "No stopwords here."
+    assert remove_stopwords("the quick brown fox.", stopwords) == "quick brown fox."
+
+
+def test_normalize_unicode():
+    assert normalize_unicode("Hello, World!") == "Hello, World!"
+    assert normalize_unicode("This is a test.") == "This is a test."
+    assert normalize_unicode("NoPunctuation") == "NoPunctuation"
+    assert (
+        normalize_unicode("  Leading and trailing whitespace...   ")
+        == "  Leading and trailing whitespace...   "
+    )
+
+
+def test_lowercase_text():
+    assert lowercase_text("Hello, World!") == "hello, world!"
+    assert lowercase_text("This is a test.") == "this is a test."
+    assert lowercase_text("NoPunctuation") == "nopunctuation"
+    assert (
+        lowercase_text("  Leading and trailing whitespace...   ")
+        == "  leading and trailing whitespace...   "
+    )

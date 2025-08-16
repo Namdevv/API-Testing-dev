@@ -23,7 +23,7 @@ with open("src/services/ai_agent/nodes/prompts/intent_detection_v1.md", "r") as 
 
 class IntentDetector(BaseAgentService):
     llm_model: str = "gemini-2.5-flash-preview-05-20"
-    agent_prompt: str = prompt
+    system_prompt: str = prompt
 
     def __call__(self, state) -> Dict[str, Any]:
         """

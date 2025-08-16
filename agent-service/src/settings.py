@@ -5,11 +5,13 @@ import logging
 import logging.config
 from datetime import datetime
 from zoneinfo import ZoneInfo
-
+from src.utils.text_preprocessing import initialize_nltk
 import redis
 from sqlmodel import create_engine
 
 load_dotenv()
+
+initialize_nltk()
 
 # Múi giờ Việt Nam
 VN_TIMEZONE = ZoneInfo("Asia/Ho_Chi_Minh")
