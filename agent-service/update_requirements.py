@@ -13,7 +13,7 @@ def get_package_current_version(line):
         return line.split(">=")[0], line.split(">=")[1]
     if "<=" in line:
         return line.split("<=")[0], line.split("<=")[1]
-    return line, None
+    return line.strip(), None
 
 
 def find_new_version(pkg_name):
@@ -24,8 +24,8 @@ def find_new_version(pkg_name):
     )
     if result.returncode == 0:
         versions = result.stdout.splitlines()
-        if len(versions) > 3:
-            return versions[3].split()[-1]
+        if len(versions) > 0:
+            return versions[0].split("(")[1].split(")")[0]
     return None
 
 
@@ -41,11 +41,17 @@ def upgrade_packages_in_file(tag_old_version=False):
                 continue
 
             name, version = get_package_current_version(line)
+            new_version = find_new_version(name)
 
-            replace_version = find_new_version(name) + (
-                f" #old: {version}" if tag_old_version else "\n"
+            replace_version = new_version + (
+                f" #old: {(version) if version else 'NONE'}"
+                if tag_old_version
+                else "\n"
             )
-            new_line = line.replace(version, replace_version)
+            if not version:
+                new_line = name + "==" + replace_version
+            else:
+                new_line = line.replace(version, replace_version)
             new_requirements += new_line
 
             print(new_line, end="")
