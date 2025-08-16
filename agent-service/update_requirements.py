@@ -9,12 +9,11 @@ def get_package_current_version(line):
         return line.split("[")[0], line.split("==")[1]
     if "==" in line:
         return line.split("==")[0], line.split("==")[1]
-    elif ">=" in line:
+    if ">=" in line:
         return line.split(">=")[0], line.split(">=")[1]
-    elif "<=" in line:
+    if "<=" in line:
         return line.split("<=")[0], line.split("<=")[1]
-    else:
-        return line, None
+    return line, None
 
 
 def find_new_version(pkg_name):
