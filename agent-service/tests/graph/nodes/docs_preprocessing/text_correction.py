@@ -1,8 +1,8 @@
-from src.graph.nodes.docs_preprocessing.text_correction import TextCorrection
+from src.registry.nodes import NODE_REGISTRY
 
 
 def test_text_correction_vn():
-    text_correction = TextCorrection()
+    text_correction = NODE_REGISTRY.get("docs_preprocessing.text_correction")()
     state = type(
         "State",
         (object,),
@@ -13,7 +13,7 @@ def test_text_correction_vn():
 
 
 def test_text_correction_en():
-    text_correction = TextCorrection()
+    text_correction = NODE_REGISTRY.get("docs_preprocessing.text_correction")()
     state = type(
         "State",
         (object,),

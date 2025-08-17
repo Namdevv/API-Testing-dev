@@ -1,11 +1,8 @@
-from dotenv import load_dotenv
-
-from src.graph.nodes.docs_preprocessing.metadata_removal import MetaDataRemoval
+from src.registry.nodes import NODE_REGISTRY
 
 
 def test_metadata_removal_vn():
-    load_dotenv()
-    meta_data_removal = MetaDataRemoval()
+    meta_data_removal = NODE_REGISTRY.get("docs_preprocessing.metadata_removal")()
 
     string = """
     Tác giả: Nguyễn Văn A
@@ -31,8 +28,7 @@ def test_metadata_removal_vn():
 
 
 def test_metadata_removal_en():
-    load_dotenv()
-    meta_data_removal = MetaDataRemoval()
+    meta_data_removal = NODE_REGISTRY.get("docs_preprocessing.metadata_removal")()
 
     string = """
     Author: John Doe

@@ -1,9 +1,10 @@
-# src.graph.nodes.data_cleanning.data_cleanning
+# src.graph.nodes.docs_preprocessing.data_cleaning
 import logging
 from typing import Any, Dict
 
 from nltk.corpus import stopwords as nltk_stopwords
 
+from src.registry.nodes import register_node
 from src.utils.text_preprocessing import (
     lowercase_text,
     normalize_unicode,
@@ -13,6 +14,7 @@ from src.utils.text_preprocessing import (
 )
 
 
+@register_node("docs_preprocessing.data_cleaning")
 class DataCleaning:
     def __call__(self, state) -> Dict[str, Any]:
         data = state.data

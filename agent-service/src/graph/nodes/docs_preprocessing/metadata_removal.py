@@ -7,6 +7,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from pydantic import model_validator
 
 from src.base.service.base_agent_service import BaseAgentService
+from src.registry.nodes import register_node
 
 prompt_vn = None
 with open(
@@ -21,6 +22,7 @@ with open(
     prompt_en = f.read()
 
 
+@register_node("docs_preprocessing.metadata_removal")
 class MetaDataRemoval(BaseAgentService):
     llm_model: str = "gemini-2.0-flash"
     llm_temperature: float = 0.0

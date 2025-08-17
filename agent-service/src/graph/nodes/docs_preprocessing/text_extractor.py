@@ -8,8 +8,10 @@ from docling.datamodel.pipeline_options import (
 )
 from docling.document_converter import DocumentConverter, InputFormat, PdfFormatOption
 from pydantic import BaseModel, model_validator
+from src.registry.nodes import register_node
 
 
+@register_node("docs_preprocessing.text_extractor")
 class TextExtractor(BaseModel):
     @model_validator(mode="after")
     def __after_init__(self):
