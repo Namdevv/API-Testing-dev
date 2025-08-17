@@ -94,9 +94,7 @@ class DocumentRepository(BaseLlmService, BaseEmbeddingService, BaseMilvusService
     def update_records(self, data: List[DocumentModel]):
         """Edit existing records in the collection."""
 
-        if not self.is_ids_exists(
-            [item.id for item in data if item.get("id", None) is not None]
-        ):
+        if not self.is_ids_exists([item.id for item in data if item.id is not None]):
             raise ValueError("Contains non-existing ids.")
 
         # Embed data

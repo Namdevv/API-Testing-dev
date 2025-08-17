@@ -40,8 +40,8 @@ class DocumentModel(BaseModel):
     )
 
     annotations: str = Field(
-        min_length=10,
-        description="document annotations, must be at least 10 characters long.",
+        min_length=3,
+        description="document annotations, must be at least 3 characters long.",
         json_schema_extra={
             "milvus_config": {
                 "dtype": DataType.VARCHAR,
