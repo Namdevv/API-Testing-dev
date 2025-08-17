@@ -170,7 +170,7 @@ services:
       ETCD_ENDPOINTS: etcd:2379
       MINIO_ADDRESS: minio:9000
     volumes:
-      - ./docker/milvus/milvus.yaml:/milvus/configs/milvus.yaml
+      - ${PROJECT_ROOT}/docker/milvus/milvus.yaml:/milvus/configs/milvus.yaml
       - milvus:/var/lib/milvus
     healthcheck:
       test: ["CMD", "curl", "-f", "http://standalone:9091/healthz"]

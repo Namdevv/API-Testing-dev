@@ -21,7 +21,7 @@ class DataCleaning:
         stopwords = []
 
         if lang == "vi":
-            file_path = "src/resources/vietnamese-stopwords.txt"
+            file_path = "assents/stopwords/vietnamese-stopwords.txt"
             with open(file_path, "r", encoding="utf-8") as f:
                 stopwords.extend(f.read().splitlines())
         elif lang == "en":
