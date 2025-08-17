@@ -43,6 +43,12 @@ MINIO_URL = os.getenv("MINIO_URL", "localhost:9000")
 MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY", "minioadmin")
 MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY", "minioadmin")
 
+MILVUS_HOST = os.getenv("MILVUS_HOST", "localhost")
+MILVUS_PORT = os.getenv("MILVUS_PORT", "19530")
+MILVUS_TOKEN = os.getenv("MILVUS_TOKEN", "root:Milvus")
+
+MILVUS_URI = "http://{}:{}".format(MILVUS_HOST, MILVUS_PORT)
+
 GOOGLE_API_KEYS = None
 with open("env/google_api_keys.txt", "r") as f:
     GOOGLE_API_KEYS = [line.strip() for line in f.readlines() if line.strip()]

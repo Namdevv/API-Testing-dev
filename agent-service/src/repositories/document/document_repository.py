@@ -1,4 +1,4 @@
-# src.repositories.product.product_repository
+# src.repositories.document.document_repository
 import logging
 from typing import List
 
@@ -14,13 +14,13 @@ from pymilvus import (
 from src.base.service.base_embedding_service import BaseEmbeddingService
 from src.base.service.base_llm_service import BaseLlmService
 from src.base.service.base_milvus_service import BaseMilvusService
-from src.common.generate_milvus_field_schemas_from_pydantic import (
+from src.models.document.document_model import DocumentModel
+from src.utils.generate_milvus_field_schemas_from_pydantic import (
     generate_milvus_field_schemas_from_pydantic,
 )
-from src.models.product.product_model import ProductModel
 
 
-class ProductRepository(BaseLlmService, BaseEmbeddingService, BaseMilvusService):
+class DocumentRepository(BaseLlmService, BaseEmbeddingService, BaseMilvusService):
 
     @model_validator(mode="after")
     def __after_init(self):
@@ -31,12 +31,12 @@ class ProductRepository(BaseLlmService, BaseEmbeddingService, BaseMilvusService)
             )
 
             fields = generate_milvus_field_schemas_from_pydantic(
-                pydantic_model=ProductModel, embedding_dim=self.embedding_dim
+                pydantic_model=DocumentModel, embedding_dim=self.embedding_dim
             )
 
             # create collection with schema
             schema = CollectionSchema(
-                fields, description="Product collection with scalar fields"
+                fields, description="Document collection with scalar fields"
             )
             self._collection = Collection(name=self.collection_name, schema=schema)
 
@@ -59,10 +59,9 @@ class ProductRepository(BaseLlmService, BaseEmbeddingService, BaseMilvusService)
         return self
 
     @validate_call
-    def embed_data(self, data: List[ProductModel]) -> List[ProductModel]:
+    def embed_data(self, data: List[DocumentModel]) -> List[DocumentModel]:
         """Embed data using the configured embeddings model."""
-        texts = [item.text_for_embedding for item in data]
-        vectors = self._embeddings.embed_documents(texts)
+        vectors = self._embeddings.embed_documents([item.text for item in data])
 
         # insert vectors into the data
         for i, item in enumerate(data):
@@ -77,7 +76,7 @@ class ProductRepository(BaseLlmService, BaseEmbeddingService, BaseMilvusService)
         return len(results) > 0
 
     @validate_call
-    def create_records(self, data: List[ProductModel]):
+    def create_records(self, data: List[DocumentModel]):
         """Add records to the collection."""
 
         if self.is_ids_exists([item.id for item in data]):
@@ -92,7 +91,7 @@ class ProductRepository(BaseLlmService, BaseEmbeddingService, BaseMilvusService)
         logging.info("Records added successfully.")
 
     @validate_call
-    def update_records(self, data: List[ProductModel]):
+    def update_records(self, data: List[DocumentModel]):
         """Edit existing records in the collection."""
 
         if not self.is_ids_exists(
@@ -109,7 +108,7 @@ class ProductRepository(BaseLlmService, BaseEmbeddingService, BaseMilvusService)
         logging.info("Records edited successfully.")
 
     @validate_call
-    def read_records(self, ids: List[int]) -> List[ProductModel]:
+    def read_records(self, ids: List[int]) -> List[DocumentModel]:
         """Get records by ids."""
 
         if not self.is_ids_exists(ids):
@@ -139,11 +138,6 @@ class ProductRepository(BaseLlmService, BaseEmbeddingService, BaseMilvusService)
 
 
 if __name__ == "__main__":
-    import pandas as pd
-    from dotenv import load_dotenv
-
-    load_dotenv()
-
     langchain.debug = True
 
     logging.basicConfig(
@@ -151,22 +145,14 @@ if __name__ == "__main__":
         format="%(asctime)s:[%(levelname)-4s] [%(module)s] [%(funcName)s]: %(message)s",
     )
 
-    products_actions = ProductRepository(collection_name="e_commerce_ai")
+    data = [
+        {
+            "doc_name": "Document Name",
+            "annotations": "Document Annotations",
+            "text": "Document Text",
+        }
+    ]
 
-    # df = pd.read_excel("src/.data/MLB.xlsx")
-    # df = pd.read_excel("src/.data/kenta_ao_khoac.xlsx")
-    # df = pd.read_excel("utils/.data/kenta_quan_short.xlsx")
-    # df = pd.read_excel("utils/.data/kenta_quan.xlsx")
-    # df = pd.read_excel("utils/.data/Dataman.xlsx")
-    # df = pd.read_excel("utils/.data/5fasion_200.xlsx")
-    df = pd.read_excel("src/.data/full_data.xlsx")
-    df.columns = df.columns.str.lower()
+    document_actions = DocumentRepository(collection_name="test")
 
-    data = df.to_dict(orient="records")
-
-    products_actions.create_records(data)
-
-    # got_records = products_actions.read_records([-9188129299376391335, -6305067348861834881])
-    # for record in got_records:
-    #     print(record)
-    #     print()
+    document_actions.create_records(data)
