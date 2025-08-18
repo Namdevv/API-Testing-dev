@@ -209,3 +209,6 @@ __marimo__/
 
 # Runtime data
 data/
+
+# langgraph api for dev
+.langgraph_api/
