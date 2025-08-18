@@ -42,6 +42,8 @@ class DocsPreprocessingWorkflow(BaseModel):
     def _add_nodes(self):
         """Add all nodes to the workflow"""
         # Add basic nodes
+        self.workflow.add_node("entry", NODE_REGISTRY.get("conversation.entry")())
+
         self.workflow.add_node(
             "data_cleaning", NODE_REGISTRY.get("docs_preprocessing.data_cleaning")()
         )
@@ -60,11 +62,12 @@ class DocsPreprocessingWorkflow(BaseModel):
 
     def _setup_edges(self):
         """Configure all edges and entry point"""
-        self.workflow.set_entry_point("text_extractor")
+        self.workflow.set_entry_point("entry")
+        self.workflow.add_edge("entry", "text_extractor")
         self.workflow.add_edge("text_extractor", "data_cleaning")
-        self.workflow.add_edge("data_cleaning", "metadata_removal")
-        self.workflow.add_edge("metadata_removal", "text_correction")
-        self.workflow.add_edge("text_correction", END)
+        self.workflow.add_edge("data_cleaning", "text_correction")
+        self.workflow.add_edge("text_correction", "metadata_removal")
+        self.workflow.add_edge("metadata_removal", END)
 
     def get_graph(self):
         """Get the compiled graph"""
@@ -96,15 +99,3 @@ class DocsPreprocessingWorkflow(BaseModel):
             if hasattr(self, key):
                 setattr(self, key, value)
         self._setup_workflow()
-
-
-# if __name__ == "__main__":
-# Example usage
-
-scan_and_register_nodes()
-agent = DocsPreprocessingWorkflow(
-    collection_name="test",
-    llm_temperature=0.1,
-)
-graph = agent.get_graph()
-print("Graph initialized:", graph is not None)

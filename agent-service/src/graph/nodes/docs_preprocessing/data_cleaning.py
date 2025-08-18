@@ -2,8 +2,11 @@
 import logging
 from typing import Any, Dict
 
+from langchain_core.messages import AIMessage
 from nltk.corpus import stopwords as nltk_stopwords
+from pydantic import validate_call
 
+from src.models.agent.docs_preprocessing_state_model import DocsPreProcessingStateModel
 from src.registry.nodes import register_node
 from src.utils.text_preprocessing import (
     lowercase_text,
@@ -16,8 +19,9 @@ from src.utils.text_preprocessing import (
 
 @register_node("docs_preprocessing.data_cleaning")
 class DataCleaning:
-    def __call__(self, state) -> Dict[str, Any]:
-        data = state.data[-1]
+    @validate_call
+    def __call__(self, state: DocsPreProcessingStateModel) -> Dict[str, Any]:
+        data = state.messages[-1].content
         lang = state.lang
 
         stopwords = []
@@ -35,8 +39,10 @@ class DataCleaning:
         cleaned_data = remove_punctuation(cleaned_data)
         cleaned_data = remove_stopwords(cleaned_data, stopwords)
 
+        return_data = AIMessage(content=cleaned_data)
+
         return {
-            "data": [cleaned_data],
+            "messages": [return_data],
         }
 
 

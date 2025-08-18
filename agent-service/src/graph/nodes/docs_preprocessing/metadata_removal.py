@@ -3,10 +3,12 @@ import logging
 from typing import Any, Dict
 
 from dotenv import load_dotenv
+from langchain_core.messages import AIMessage
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from pydantic import model_validator
+from pydantic import model_validator, validate_call
 
 from src.base.service.base_agent_service import BaseAgentService
+from src.models.agent.docs_preprocessing_state_model import DocsPreProcessingStateModel
 from src.registry.nodes import register_node
 
 prompt_vn = None
@@ -41,8 +43,9 @@ class MetaDataRemoval(BaseAgentService):
         )
         return self
 
-    def __call__(self, state) -> Dict[str, Any]:
-        data = state.data[-1]
+    @validate_call
+    def __call__(self, state: DocsPreProcessingStateModel) -> Dict[str, Any]:
+        data = state.messages[-1].content
         lang = state.lang
 
         if lang == "vi":
@@ -66,8 +69,10 @@ class MetaDataRemoval(BaseAgentService):
 
         logging.info("MetaDataRemoval node called")
 
+        return_data = AIMessage(content=result_text)
+
         return {
-            "data": [result_text],
+            "messages": [return_data],
         }
 
 
