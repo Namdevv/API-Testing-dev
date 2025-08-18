@@ -13,6 +13,11 @@ def remove_punctuation(text):
     return text.translate(str.maketrans("", "", string.punctuation))
 
 
+def remove_repeated_punctuation(text):
+    pattern = r"([%s])\1+" % re.escape(string.punctuation)
+    return re.sub(pattern, r"\1", text)
+
+
 def remove_extra_whitespace(text):
     return re.sub(r"\s+", " ", text.strip())
 

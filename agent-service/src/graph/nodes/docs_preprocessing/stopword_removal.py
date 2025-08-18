@@ -9,16 +9,12 @@ from pydantic import validate_call
 from src.models.agent.docs_preprocessing_state_model import DocsPreProcessingStateModel
 from src.registry.nodes import register_node
 from src.utils.text_preprocessing import (
-    lowercase_text,
-    normalize_unicode,
-    remove_extra_whitespace,
-    remove_punctuation,
     remove_stopwords,
 )
 
 
-@register_node("docs_preprocessing.data_cleaning")
-class DataCleaning:
+@register_node("docs_preprocessing.stopword_removal")
+class StopWordRemoval:
     @validate_call
     def __call__(self, state: DocsPreProcessingStateModel) -> Dict[str, Any]:
         data = state.messages[-1].content
@@ -33,11 +29,7 @@ class DataCleaning:
         elif lang == "en":
             stopwords.extend(nltk_stopwords.words("english"))
 
-        cleaned_data = normalize_unicode(data)
-        cleaned_data = lowercase_text(cleaned_data)
-        cleaned_data = remove_extra_whitespace(cleaned_data)
-        cleaned_data = remove_punctuation(cleaned_data)
-        cleaned_data = remove_stopwords(cleaned_data, stopwords)
+        cleaned_data = remove_stopwords(data, stopwords)
 
         return_data = AIMessage(content=cleaned_data)
 
@@ -55,7 +47,7 @@ if __name__ == "__main__":
         (object,),
         {"data": "Tôi    là một học sinh ở trường trung học.!!!@@@", "lang": "vi"},
     )()
-    data_cleaning = DataCleaning()
+    data_cleaning = StopWordRemoval()
     result = data_cleaning(state)
     logger.info(
         f"Data cleaning result: {result=={'cleaned_data': ['học sinh trường trung học']}}"

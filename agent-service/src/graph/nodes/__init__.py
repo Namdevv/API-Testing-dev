@@ -3,8 +3,9 @@
 
 from src.graph.nodes.conversation import entry
 from src.graph.nodes.docs_preprocessing import (
-    data_cleaning,
     metadata_removal,
     text_correction,
     text_extractor,
+    stopword_removal,
+    text_normalization,
 )

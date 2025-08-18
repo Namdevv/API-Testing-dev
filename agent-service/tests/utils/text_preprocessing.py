@@ -4,6 +4,7 @@ from src.utils.text_preprocessing import (
     remove_extra_whitespace,
     remove_punctuation,
     remove_stopwords,
+    remove_repeated_punctuation,
 )
 
 
@@ -52,4 +53,14 @@ def test_lowercase_text():
     assert (
         lowercase_text("  Leading and trailing whitespace...   ")
         == "  leading and trailing whitespace...   "
+    )
+
+
+def test_remove_repeated_punctuation():
+    assert remove_repeated_punctuation("Hello!!!") == "Hello!"
+    assert remove_repeated_punctuation("What??") == "What?"
+    assert remove_repeated_punctuation("This is a test...") == "This is a test."
+    assert (
+        remove_repeated_punctuation("Single. Punctuation! Stays?")
+        == "Single. Punctuation! Stays?"
     )

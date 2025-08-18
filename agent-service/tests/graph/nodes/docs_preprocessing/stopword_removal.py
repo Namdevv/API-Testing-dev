@@ -5,9 +5,9 @@ from src.models.agent.docs_preprocessing_state_model import DocsPreProcessingSta
 from src.registry.nodes import NODE_REGISTRY
 
 
-def test_data_cleaning_vn():
-    data_test = "Tôi là một học sinh ở trường trung học.!!!@@@"
-    node = NODE_REGISTRY.get("docs_preprocessing.data_cleaning")()
+def test_stopword_removal_vn():
+    data_test = "học là sinh trường trung học"
+    node = NODE_REGISTRY.get("docs_preprocessing.stopword_removal")()
 
     input_mess = HumanMessage(
         content=data_test,
@@ -18,9 +18,9 @@ def test_data_cleaning_vn():
     assert result == "học sinh trường trung học"
 
 
-def test_data_cleaning_en():
-    data_test = "I am a student at the high school.!!!@@@"
-    node = NODE_REGISTRY.get("docs_preprocessing.data_cleaning")()
+def test_stopword_removal_en():
+    data_test = "I am a student at the high school"
+    node = NODE_REGISTRY.get("docs_preprocessing.stopword_removal")()
 
     input_mess = HumanMessage(
         content=data_test,
@@ -28,4 +28,4 @@ def test_data_cleaning_en():
     state = DocsPreProcessingStateModel(user_input="", messages=[input_mess], lang="en")
 
     result = node(state)["messages"][-1].content
-    assert result == "student high school"
+    assert result == "I student high school"

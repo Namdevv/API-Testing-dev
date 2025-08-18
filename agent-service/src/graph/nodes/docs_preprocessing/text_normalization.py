@@ -1,0 +1,32 @@
+# src.graph.nodes.docs_preprocessing.data_cleaning
+from typing import Any, Dict
+
+from langchain_core.messages import AIMessage
+from pydantic import validate_call
+
+from src.models.agent.docs_preprocessing_state_model import DocsPreProcessingStateModel
+from src.registry.nodes import register_node
+from src.utils.text_preprocessing import (
+    lowercase_text,
+    normalize_unicode,
+    remove_extra_whitespace,
+    remove_repeated_punctuation,
+)
+
+
+@register_node("docs_preprocessing.text_normalization")
+class TextNormalization:
+    @validate_call
+    def __call__(self, state: DocsPreProcessingStateModel) -> Dict[str, Any]:
+        data = state.messages[-1].content
+
+        cleaned_data = normalize_unicode(data)
+        cleaned_data = lowercase_text(cleaned_data)
+        cleaned_data = remove_extra_whitespace(cleaned_data)
+        cleaned_data = remove_repeated_punctuation(cleaned_data)
+
+        return_data = AIMessage(content=cleaned_data)
+
+        return {
+            "messages": [return_data],
+        }
