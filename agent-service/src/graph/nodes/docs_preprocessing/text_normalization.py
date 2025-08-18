@@ -11,6 +11,7 @@ from src.utils.text_preprocessing import (
     normalize_unicode,
     remove_extra_whitespace,
     remove_repeated_punctuation,
+    extract_link_text,
 )
 
 
@@ -24,6 +25,7 @@ class TextNormalization:
         cleaned_data = lowercase_text(cleaned_data)
         cleaned_data = remove_extra_whitespace(cleaned_data)
         cleaned_data = remove_repeated_punctuation(cleaned_data)
+        cleaned_data = extract_link_text(cleaned_data)
 
         return_data = AIMessage(content=cleaned_data)
 

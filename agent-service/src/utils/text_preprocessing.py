@@ -30,6 +30,11 @@ def lowercase_text(text):
     return text.lower()
 
 
+def extract_link_text(text):
+    pattern = r"\[([^\]]+)\]\([^\)]+\)"
+    return re.sub(pattern, r"\1", text)
+
+
 if __name__ == "__main__":
     # initialize_nltk()
 

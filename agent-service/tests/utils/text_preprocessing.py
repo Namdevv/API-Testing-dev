@@ -1,10 +1,11 @@
 from src.utils.text_preprocessing import (
+    extract_link_text,
     lowercase_text,
     normalize_unicode,
     remove_extra_whitespace,
     remove_punctuation,
-    remove_stopwords,
     remove_repeated_punctuation,
+    remove_stopwords,
 )
 
 
@@ -64,3 +65,9 @@ def test_remove_repeated_punctuation():
         remove_repeated_punctuation("Single. Punctuation! Stays?")
         == "Single. Punctuation! Stays?"
     )
+
+
+def test_extract_link_text():
+    assert extract_link_text("[link text](url)") == "link text"
+    assert extract_link_text("No links here.") == "No links here."
+    assert extract_link_text("[another link](http://example.com)") == "another link"
