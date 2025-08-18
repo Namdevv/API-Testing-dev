@@ -42,7 +42,7 @@ class TextCorrection(BaseAgentService):
         return self
 
     def __call__(self, state) -> Dict[str, Any]:
-        data = state.data
+        data = state.data[-1]
         lang = state.lang
 
         corrected_text = ""
@@ -68,7 +68,7 @@ class TextCorrection(BaseAgentService):
         logging.info("TextCorrection node called")
 
         return {
-            "result": [corrected_text],
+            "data": [corrected_text],
         }
 
 
@@ -86,7 +86,7 @@ if __name__ == "__main__":
 
     response = text_correction(state)
 
-    print(response["result"][0])
+    print(response["data"][0])
 
     with open(dest, "w") as f:
-        f.write(response["result"][0])
+        f.write(response["data"][0])

@@ -1,21 +1,14 @@
 from typing import Optional
 
 from langgraph.graph import END, StateGraph
-from langgraph.prebuilt import ToolNode
 from pydantic import BaseModel, Field
 
 from src.models.agent.agent_state_model import AgentStateModel
-from src.services.ai_agent.nodes.greeting import Greeting
-from src.services.ai_agent.nodes.intent_detection import IntentDetector
-from src.services.ai_agent.nodes.make_order import MakeOder
-from src.services.ai_agent.nodes.product import Product
-from src.services.ai_agent.nodes.route_intent import route_intent
-from src.services.ai_agent.nodes.should_continue import should_continue
-from src.services.ai_agent.tools.product_tools import ProductTools
-from src.services.common.tools.make_order_tool import make_order_tool
+from src.models.agent.docs_preprocessing_state_model import DocsPreProcessingStateModel
+from src.registry.nodes import NODE_REGISTRY, scan_and_register_nodes
 
 
-class AIAgent(BaseModel):
+class DocsPreprocessingWorkflow(BaseModel):
     collection_name: str = Field(
         default="e_commerce_ai", description="Collection name for vector database"
     )
@@ -24,7 +17,7 @@ class AIAgent(BaseModel):
     )
 
     agent_state: BaseModel = Field(
-        default_factory=AgentStateModel,
+        default=DocsPreProcessingStateModel,
         description="State of the AI agent, including user input and intent",
     )
     # These fields will be set during initialization
@@ -41,7 +34,7 @@ class AIAgent(BaseModel):
 
     def _setup_workflow(self):
         """Initialize and configure the workflow graph"""
-        self.workflow = StateGraph(AgentStateModel)
+        self.workflow = StateGraph(self.agent_state)
         self._add_nodes()
         self._setup_edges()
         self.graph = self.workflow.compile()
@@ -49,66 +42,29 @@ class AIAgent(BaseModel):
     def _add_nodes(self):
         """Add all nodes to the workflow"""
         # Add basic nodes
-        self.workflow.add_node("intent_detection", IntentDetector(llm_temperature=0))
         self.workflow.add_node(
-            "greeting", Greeting(llm_temperature=self.llm_temperature)
+            "data_cleaning", NODE_REGISTRY.get("docs_preprocessing.data_cleaning")()
         )
-
-        # Add product related nodes
-        product_tools = ProductTools(
-            collection_name=self.collection_name
-        ).create_tools()
-        self.workflow.add_node("product_tools", ToolNode(product_tools))
-
-        product = Product(tools=product_tools, llm_temperature=self.llm_temperature)
-        self.workflow.add_node("product", product)
-
-        # Add order related nodes
-        make_order = MakeOder(llm_temperature=self.llm_temperature)
-        self.workflow.add_node("make_order", make_order)
-        self.workflow.add_node("make_order_tools", ToolNode([make_order_tool]))
+        self.workflow.add_node(
+            "metadata_removal",
+            NODE_REGISTRY.get("docs_preprocessing.metadata_removal")(),
+        )
+        self.workflow.add_node(
+            "text_correction",
+            NODE_REGISTRY.get("docs_preprocessing.text_correction")(),
+        )
+        self.workflow.add_node(
+            "text_extractor",
+            NODE_REGISTRY.get("docs_preprocessing.text_extractor")(),
+        )
 
     def _setup_edges(self):
         """Configure all edges and entry point"""
-        # Set entry point
-        self.workflow.set_entry_point("intent_detection")
-
-        # Conditional edges from intent_detection
-        self.workflow.add_conditional_edges(
-            "intent_detection",
-            route_intent,
-            {
-                "product": "product",
-                "greeting": "greeting",
-                "make_order": "make_order",
-                "other": "greeting",  # Default to greeting for unrecognized intents
-            },
-        )
-
-        # Conditional edges from product node
-        self.workflow.add_conditional_edges(
-            "product",
-            should_continue,
-            {
-                "continue": "product_tools",
-                "end": END,
-            },
-        )
-        self.workflow.add_edge("product_tools", "product")
-
-        # Conditional edges from make_order node
-        self.workflow.add_conditional_edges(
-            "make_order",
-            should_continue,
-            {
-                "continue": "make_order_tools",
-                "end": END,
-            },
-        )
-        self.workflow.add_edge("make_order_tools", "make_order")
-
-        # Terminal edges
-        self.workflow.add_edge("greeting", END)
+        self.workflow.set_entry_point("text_extractor")
+        self.workflow.add_edge("text_extractor", "data_cleaning")
+        self.workflow.add_edge("data_cleaning", "metadata_removal")
+        self.workflow.add_edge("metadata_removal", "text_correction")
+        self.workflow.add_edge("text_correction", END)
 
     def get_graph(self):
         """Get the compiled graph"""
@@ -142,11 +98,13 @@ class AIAgent(BaseModel):
         self._setup_workflow()
 
 
-if __name__ == "__main__":
-    # Example usage
-    agent = AIAgent(
-        collection_name="e_commerce_ai",
-        llm_temperature=0.1,
-    )
-    graph = agent.get_graph()
-    print("Graph initialized:", graph is not None)
+# if __name__ == "__main__":
+# Example usage
+
+scan_and_register_nodes()
+agent = DocsPreprocessingWorkflow(
+    collection_name="test",
+    llm_temperature=0.1,
+)
+graph = agent.get_graph()
+print("Graph initialized:", graph is not None)

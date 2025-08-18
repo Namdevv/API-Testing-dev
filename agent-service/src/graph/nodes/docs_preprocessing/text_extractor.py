@@ -8,6 +8,7 @@ from docling.datamodel.pipeline_options import (
 )
 from docling.document_converter import DocumentConverter, InputFormat, PdfFormatOption
 from pydantic import BaseModel, model_validator
+
 from src.registry.nodes import register_node
 
 
@@ -36,7 +37,7 @@ class TextExtractor(BaseModel):
         return self
 
     def __call__(self, state):
-        data = state.data
+        data = state.data[-1]
 
         conversion_result = self.__converter.convert(data)
         doc = conversion_result.document
@@ -44,19 +45,19 @@ class TextExtractor(BaseModel):
         text = doc.export_to_text()
 
         return {
-            "messages": [text],
+            "data": [text],
         }
 
 
 if __name__ == "__main__":
     # source = "http://localhost:9000/mybucket/mac-lenin.pdf?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=minioadmin%2F20250817%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20250817T070349Z&X-Amz-Expires=3600&X-Amz-SignedHeaders=host&X-Amz-Signature=ee175d0a9cd36f6f27e28c900af54ee3061b5045ead25fa4215365d3fdc47a0e"
-    source = "data/uploads/mac-lenin.pdf"
+    source = "http://example.com"
     dest = "data/uploads/mac-lenin.txt"
 
     extractor = TextExtractor()
-    result = extractor(type("State", (object,), {"data": source, "lang": "vi"})())
+    result = extractor(type("State", (object,), {"data": [source], "lang": "vi"})())
 
-    print("Extracted text:", result["messages"][0])
+    print("Extracted text:", result["data"][0])
 
     with open(dest, "w", encoding="utf-8") as f:
-        f.write(result["messages"][0])
+        f.write(result["data"][0])

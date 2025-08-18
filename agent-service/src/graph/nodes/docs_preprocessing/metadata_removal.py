@@ -42,7 +42,7 @@ class MetaDataRemoval(BaseAgentService):
         return self
 
     def __call__(self, state) -> Dict[str, Any]:
-        data = state.data
+        data = state.data[-1]
         lang = state.lang
 
         if lang == "vi":
@@ -67,7 +67,7 @@ class MetaDataRemoval(BaseAgentService):
         logging.info("MetaDataRemoval node called")
 
         return {
-            "result": [result_text],
+            "data": [result_text],
         }
 
 
@@ -91,4 +91,4 @@ if __name__ == "__main__":
 
     response = meta_data_removal(state)
 
-    print(response["result"][0])
+    print(response["data"][0])

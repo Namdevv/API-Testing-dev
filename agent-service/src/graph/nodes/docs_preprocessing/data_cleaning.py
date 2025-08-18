@@ -17,7 +17,7 @@ from src.utils.text_preprocessing import (
 @register_node("docs_preprocessing.data_cleaning")
 class DataCleaning:
     def __call__(self, state) -> Dict[str, Any]:
-        data = state.data
+        data = state.data[-1]
         lang = state.lang
 
         stopwords = []
@@ -36,7 +36,7 @@ class DataCleaning:
         cleaned_data = remove_stopwords(cleaned_data, stopwords)
 
         return {
-            "cleaned_data": [cleaned_data],
+            "data": [cleaned_data],
         }
 
 

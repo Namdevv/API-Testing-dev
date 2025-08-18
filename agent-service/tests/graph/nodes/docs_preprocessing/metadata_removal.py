@@ -16,9 +16,9 @@ def test_metadata_removal_vn():
     Các vấn đề phát sinh đã được ghi nhận và xử lý kịp thời.
     Kế hoạch tuần tới là tối ưu hóa thuật toán và cập nhật tài liệu hướng dẫn sử dụng.
     """
-    state = type("State", (object,), {"data": string, "lang": "vi"})()
+    state = type("State", (object,), {"data": [string], "lang": "vi"})()
 
-    response = meta_data_removal(state)["result"][0]
+    response = meta_data_removal(state)["data"][0]
 
     assert "15/08/2025" not in response
     assert "Nguyễn Văn A" not in response
@@ -42,9 +42,9 @@ def test_metadata_removal_en():
     Issues that arose were recorded and addressed in a timely manner.
     The plan for next week is to optimize the algorithm and update the user manual.
     """
-    state = type("State", (object,), {"data": string, "lang": "en"})()
+    state = type("State", (object,), {"data": [string], "lang": "en"})()
 
-    response = meta_data_removal(state)["result"][0]
+    response = meta_data_removal(state)["data"][0]
 
     assert "15/08/2025" not in response
     assert "John Doe" not in response
