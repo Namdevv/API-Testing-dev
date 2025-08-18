@@ -2,7 +2,7 @@
 from typing import Any, Dict
 
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from pydantic import BaseModel, model_validator, validate_call
+from pydantic import model_validator, validate_call
 
 from src.models.agent.docs_preprocessing_state_model import DocsPreProcessingStateModel
 from src.models.document.document_model import DocumentModel
