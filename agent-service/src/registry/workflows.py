@@ -7,3 +7,7 @@ def register_workflow(name):
         return cls
 
     return decorator
+
+
+def scan_and_register_workflows():
+    from src.graph import workflows  # noqa: F401

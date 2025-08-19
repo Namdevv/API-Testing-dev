@@ -7,3 +7,7 @@ def register_action(name):
         return cls
 
     return decorator
+
+
+def scan_and_register_actions():
+    from src.graph import actions  # noqa: F401

@@ -7,3 +7,7 @@ def register_tool(name):
         return cls
 
     return decorator
+
+
+def scan_and_register_tools():
+    from src.graph import tools  # noqa: F401
