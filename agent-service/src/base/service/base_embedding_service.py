@@ -22,8 +22,6 @@ class BaseEmbeddingService(BaseMultiApiTokens):
 
     @model_validator(mode="after")
     def __after_init(self):
-        self._check_tokens()
-
         model_params = {
             "model": self.embedding_model,
             "transport": "rest",

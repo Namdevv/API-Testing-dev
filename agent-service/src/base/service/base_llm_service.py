@@ -33,7 +33,6 @@ class BaseLlmService(BaseMultiApiTokens):
 
     @model_validator(mode="after")
     def __after_init(self):
-        self._check_tokens()
         models = {"gemini": ChatGoogleGenerativeAI, "gemma": GoogleGenerativeAI}
 
         model_params = {
