@@ -6,6 +6,7 @@ from langchain_core.messages import AIMessage
 from nltk.corpus import stopwords as nltk_stopwords
 from pydantic import validate_call
 
+from src.enums.enums import LanguageEnum
 from src.models.agent.docs_preprocessing_state_model import DocsPreProcessingStateModel
 from src.registry.nodes import register_node
 from src.utils.text_preprocessing import (
@@ -22,11 +23,11 @@ class StopWordRemoval:
 
         stopwords = []
 
-        if lang == "vi":
+        if lang == LanguageEnum.VI:
             file_path = "assents/stopwords/vietnamese-stopwords.txt"
             with open(file_path, "r", encoding="utf-8") as f:
                 stopwords.extend(f.read().splitlines())
-        elif lang == "en":
+        elif lang == LanguageEnum.EN:
             stopwords.extend(nltk_stopwords.words("english"))
 
         cleaned_data = remove_stopwords(data, stopwords)

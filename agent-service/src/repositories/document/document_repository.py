@@ -9,6 +9,7 @@ from pymilvus import (
     Collection,
     CollectionSchema,
 )
+
 from src.base.service.base_embedding_service import BaseEmbeddingService
 from src.base.service.base_llm_service import BaseLlmService
 from src.base.service.base_milvus_service import BaseMilvusService
@@ -60,7 +61,7 @@ class DocumentRepository(BaseLlmService, BaseEmbeddingService, BaseMilvusService
     @validate_call
     def embed_data(self, data: List[DocumentModel]) -> List[DocumentModel]:
         """Embed data using the configured embeddings model."""
-        vectors = self._embeddings.embed_documents([item.text for item in data])
+        vectors = self.get_embedding().embed_documents([item.text for item in data])
 
         # insert vectors into the data
         for i, item in enumerate(data):
@@ -142,7 +143,7 @@ class DocumentRepository(BaseLlmService, BaseEmbeddingService, BaseMilvusService
         annotations: str = None,
     ):
         milvus = Milvus(
-            embedding_function=self._embeddings,
+            embedding_function=self.get_embedding(),
             collection_name=self.collection_name,
             connection_args={"uri": self.milvus_uri, "token": self.milvus_token},
         )

@@ -22,14 +22,6 @@ class BaseAgentService(BaseLlmService):
         else:
             self._agents = self._llms
 
-        self._prompt = ChatPromptTemplate.from_messages(
-            [
-                ("system", self.__system_prompt),
-                MessagesPlaceholder(variable_name="chat_history"),
-                ("human", "{input}"),
-            ]
-        )
-
         return self
 
     def _get_agent(self):
@@ -46,6 +38,14 @@ class BaseAgentService(BaseLlmService):
     @validate_call
     def load_system_prompt(self, system_prompt: str):
         self.__system_prompt = system_prompt
+
+        self._prompt = ChatPromptTemplate.from_messages(
+            [
+                ("system", self.__system_prompt),
+                MessagesPlaceholder(variable_name="chat_history"),
+                ("human", "{input}"),
+            ]
+        )
 
     @validate_call
     def runs(self, invoke_inputs: list[dict], batch_size: int = -1):

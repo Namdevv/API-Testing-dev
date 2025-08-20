@@ -8,20 +8,21 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from pydantic import model_validator, validate_call
 
 from src.base.service.base_agent_service import BaseAgentService
+from src.enums.enums import LanguageEnum
 from src.models.agent.docs_preprocessing_state_model import DocsPreProcessingStateModel
 from src.registry.nodes import register_node
 
-prompt_vn = None
+prompts = {}
+
 with open(
     "src/graph/nodes/docs_preprocessing/prompts/text_correction_vn.txt", "r"
 ) as f:
-    prompt_vn = f.read()
+    prompts[LanguageEnum.VI] = f.read()
 
-prompt_en = None
 with open(
     "src/graph/nodes/docs_preprocessing/prompts/text_correction_en.txt", "r"
 ) as f:
-    prompt_en = f.read()
+    prompts[LanguageEnum.EN] = f.read()
 
 
 @register_node("docs_preprocessing.text_correction")
@@ -46,14 +47,9 @@ class TextCorrection(BaseAgentService):
     @validate_call
     def __call__(self, state: DocsPreProcessingStateModel) -> Dict[str, Any]:
         data = state.messages[-1].content
-        lang = state.lang
+        self.load_system_prompt(prompts[state.lang])
 
         corrected_text = ""
-
-        if lang == "vi":
-            self.system_prompt = prompt_vn
-        else:
-            self.system_prompt = prompt_en
 
         chunks = self.__text_splitter.split_text(data)
 

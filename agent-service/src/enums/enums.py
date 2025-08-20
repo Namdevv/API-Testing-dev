@@ -7,5 +7,5 @@ class ModelTypeEnum(str, Enum):
 
 
 class LanguageEnum(str, Enum):
-    vi = "vi"
-    en = "en"
+    VI = "vi"
+    EN = "en"

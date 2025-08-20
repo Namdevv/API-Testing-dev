@@ -40,9 +40,9 @@ class TextExtractor(BaseModel):
 
     @validate_call
     def __call__(self, state: DocsPreProcessingStateModel):
-        data = state.messages[-1].content
+        data = state.messages[-1].content.strip()
 
-        conversion_result = self.__converter.convert(data)
+        conversion_result = self.__converter.convert(data, page_range=[1, 20])
         doc = conversion_result.document
 
         text = doc.export_to_text()
