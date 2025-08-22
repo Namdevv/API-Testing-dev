@@ -1,11 +1,9 @@
 # src.utils.test_langchain_google_api_keys
-import os
+import logging
 from typing import Optional
 
-from dotenv import load_dotenv
 from google.api_core import exceptions
 from langchain_google_genai import GoogleGenerativeAI
-import logging
 
 
 def check_google_api_tokens(tokens: Optional[list[str]] = None):
@@ -17,7 +15,7 @@ def check_google_api_tokens(tokens: Optional[list[str]] = None):
             assert False, "Key is empty, None, or invalid."
         try:
             model = GoogleGenerativeAI(
-                model="gemma-3-27b-it", google_api_key=key, temperature=0
+                model="gemma-3n-e4b-it", google_api_key=key, temperature=0
             )
 
             model.invoke("Say hi")
