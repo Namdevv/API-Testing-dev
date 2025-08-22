@@ -1,7 +1,8 @@
-from typing import Optional
+from typing import Optional, Union
 
 from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAI
 from pydantic import Field, model_validator
+
 from src.base.service.base_multi_api_tokens import BaseMultiApiTokens
 from src.settings import GOOGLE_API_KEYS
 
@@ -40,7 +41,7 @@ class BaseLlmService(BaseMultiApiTokens):
             "transport": "rest",
         }
 
-        self._llms = []
+        self._llms: list[ChatGoogleGenerativeAI] = []
 
         model_type = self.llm_model.split("-")[0]
         for google_api_key in GOOGLE_API_KEYS:
@@ -52,5 +53,5 @@ class BaseLlmService(BaseMultiApiTokens):
         self._reset_round_robin()
         return self
 
-    def get_llm(self):
+    def get_llm(self) -> Union[ChatGoogleGenerativeAI, GoogleGenerativeAI]:
         return self._llms[self._get_next_model_index()]

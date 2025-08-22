@@ -1,7 +1,8 @@
 from concurrent.futures import ThreadPoolExecutor
-from typing import List, Optional
+from typing import List, Optional, Union
 
 from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAI
 from pydantic import Field, model_validator, validate_call
 
 from src.utils.common import split_by_size
@@ -24,16 +25,8 @@ class BaseAgentService(BaseLlmService):
 
         return self
 
-    def _get_agent(self):
+    def _get_agent(self) -> Union[ChatGoogleGenerativeAI, GoogleGenerativeAI]:
         return self._agents[self._get_next_model_index()]
-
-    @validate_call
-    def run(self, invoke_input: dict):
-        _invoke_input = invoke_input.copy()
-        _invoke_input["system_prompt"] = self.system_prompt
-
-        response = self._get_agent().invoke(self._prompt.invoke(_invoke_input))
-        return response
 
     @validate_call
     def load_system_prompt(self, system_prompt: str):
@@ -46,6 +39,15 @@ class BaseAgentService(BaseLlmService):
                 ("human", "{input}"),
             ]
         )
+
+    @validate_call
+    def run(self, invoke_input: dict):
+        invoked_prompt = self._prompt.invoke(invoke_input)
+
+        agent = self._get_agent()
+
+        response = agent.invoke(invoked_prompt)
+        return response
 
     @validate_call
     def runs(self, invoke_inputs: list[dict], batch_size: int = -1):
