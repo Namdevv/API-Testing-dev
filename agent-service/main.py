@@ -1,7 +1,17 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from src.api.routers import all_routers
-from fastapi.middleware.cors import CORSMiddleware
+from src.registry.actions import scan_and_register_actions
+from src.registry.nodes import scan_and_register_nodes
+from src.registry.tools import scan_and_register_tools
+from src.registry.workflows import scan_and_register_workflows
+
+scan_and_register_tools()
+scan_and_register_actions()
+scan_and_register_nodes()
+scan_and_register_workflows()
+
 
 app = FastAPI(
     docs_url="/api/docs",
