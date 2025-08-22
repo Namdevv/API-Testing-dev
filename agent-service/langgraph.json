@@ -1,7 +1,8 @@
 {
   "dependencies": ["./src/graph/workflows/"],
   "graphs": {
-    "docs_preprocessing_workflow": "./src/graph/workflows/.langgraph_dev.py:docs_preprocessing_graph"
+    "docs_preprocessing_workflow": "./src/graph/workflows/.langgraph_dev.py:docs_preprocessing_graph",
+    "simple_qa_workflow": "./src/graph/workflows/.langgraph_dev.py:simple_qa_graph"
   },
   "env": ".env"
 }
