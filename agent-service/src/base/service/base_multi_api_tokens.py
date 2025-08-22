@@ -1,11 +1,10 @@
 import logging
 import time
-from random import shuffle
 
 from pydantic import BaseModel, Field
-from src.settings import GOOGLE_API_KEYS, get_redis_client
-from src.enums.enums import ModelTypeEnum
 
+from src.enums.enums import ModelTypeEnum
+from src.settings import GOOGLE_API_KEYS, get_redis_client
 
 redis_round_robin_key = "round_robin_{model_type}"
 redis_round_robin_lock_key = "round_robin_{model_type}_lock"
@@ -32,7 +31,6 @@ class BaseMultiApiTokens(BaseModel):
                     raise ValueError("GOOGLE_API_KEYS is empty.")
 
                 model_index = list(range(len(GOOGLE_API_KEYS)))
-                shuffle(model_index)
 
                 redis_client.delete(model_key)  # Xóa trước khi push
                 redis_client.rpush(model_key, *model_index)
