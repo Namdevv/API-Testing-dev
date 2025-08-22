@@ -1,42 +1,49 @@
-from typing import Type
+from typing import Optional, Type
 
 from langchain.tools import BaseTool
+from langchain_core.messages import ToolMessage
 from pydantic import BaseModel, Field
 
 from src.registry.tools import register_tool
 from src.repositories.document.document_repository import DocumentRepository
 
-register_tool("document.document_tool")
-
 
 class _DocumentInput(BaseModel):
     query: str = Field(description="The query text to search for")
-    doc_name: str = Field(description="The name of the document")
-    annotations: str = Field(description="Annotations to filter the documents")
-    document_amount: int = Field(
+    doc_name: Optional[str] = Field(
+        default=None, description="The name of the document"
+    )
+    annotations: Optional[str] = Field(
+        default=None, description="Annotations to filter the documents"
+    )
+    document_amount: Optional[int] = Field(
         default=1, description="The number of documents to return"
     )
-    document_offset: int = Field(default=0, description="The offset for pagination")
+    document_offset: Optional[int] = Field(
+        default=0, description="The offset for pagination"
+    )
 
 
+@register_tool("document.document_tool")
 class DocumentTool(BaseTool):
     name: str = "document_tool"
     description: str = """
-    Tool for search document by text, and other metadata
+    Tool for searching documents by text and other metadata.
 
     Args:
-        query: The query text to search for
-        doc_name: The name of the document
-        annotations: Annotations to filter the documents
-        document_amount: The number of documents to return
-        document_offset: The offset for pagination
+        query (str): The query text to search for.
+        doc_name (Optional[str], optional): The name of the document. Defaults to None.
+        annotations (Optional[str], optional): Annotations to filter the documents. Defaults to None.
+        document_amount (Optional[int], optional): The number of documents to return. Defaults to 1.
+        document_offset (Optional[int], optional): The offset for pagination. Defaults to 0.
 
     Returns:
-        A list of documents matching the search criteria.
+        List[ToolMessage]: A list of documents matching the search criteria.
     """
     args_schema: Type[BaseModel] = _DocumentInput
 
-    def __init__(self):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         self.__repository = DocumentRepository()
 
     def _run(
@@ -47,10 +54,16 @@ class DocumentTool(BaseTool):
         doc_name: str = None,
         annotations: str = None,
     ):
-        return self.__repository.search_documents(
+        result = self.__repository.search_by_text(
             query=query,
             doc_name=doc_name,
             annotations=annotations,
             document_amount=document_amount,
             document_offset=document_offset,
-        )
+        )[0]
+        return [
+            ToolMessage(
+                content=result,
+                tool_call_id="<TOOL_CALL_ID>",
+            )
+        ]
