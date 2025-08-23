@@ -17,13 +17,98 @@ def remove_punctuation(text):
     return text.translate(str.maketrans("", "", string.punctuation))
 
 
-def remove_repeated_punctuation(text):
-    pattern = r"([%s])\1+" % re.escape(string.punctuation)
-    return re.sub(pattern, r"\1", text)
+def remove_repeated_punctuation(text, ignore_code_blocks=False):
+    """
+    Remove repeated punctuation from text while optionally preserving code blocks.
+
+    Args:
+        text (str): Input text to clean
+        ignore_code_blocks (bool): If True, preserve formatting inside code blocks
+
+    Returns:
+        str: Text with repeated punctuation removed
+    """
+
+    def _remove_repeated_punctuation(text):
+        # Replace multiple consecutive punctuation with single occurrence
+        pattern = r"([%s])\1+" % re.escape(string.punctuation)
+        return re.sub(pattern, r"\1", text)
+
+    # If not preserving code blocks, apply simple punctuation removal
+    if not ignore_code_blocks:
+        return _remove_repeated_punctuation(text)
+
+    # Pattern to match code blocks (``` or ~~~ delimited)
+    code_block_pattern = re.compile(r"(```.*?```|~~~.*?~~~)", re.DOTALL)
+    blocks = []  # Store processed text blocks
+    last_idx = 0  # Track position in original text
+
+    # Process each code block found
+    for match in code_block_pattern.finditer(text):
+        start, end = match.span()
+
+        # Clean repeated punctuation in text before this code block
+        if start > last_idx:
+            blocks.append(_remove_repeated_punctuation(text[last_idx:start]))
+
+        # Preserve code block as-is (no punctuation cleaning)
+        blocks.append(text[start:end])
+        last_idx = end
+
+    # Clean remaining text after last code block
+    if last_idx < len(text):
+        blocks.append(_remove_repeated_punctuation(text[last_idx:]))
+
+    # Join all blocks back together
+    return "".join(blocks)
 
 
-def remove_extra_whitespace(text):
-    return re.sub(r"\s+", " ", text.strip())
+def remove_extra_whitespace(text, ignore_code_blocks=False):
+    """
+    Remove extra whitespace from text while optionally preserving code blocks.
+
+    Args:
+        text (str): Input text to clean
+        ignore_code_blocks (bool): If True, preserve formatting inside code blocks
+
+    Returns:
+        str: Text with extra whitespace removed
+    """
+
+    def _remove_extra_whitespace(text):
+        # Replace multiple consecutive whitespace characters with single space
+        # and strip leading/trailing whitespace
+        return "\n".join(
+            re.sub(r"[ ]+", " ", line.strip()) for line in text.splitlines()
+        )
+
+    # If not preserving code blocks, apply simple whitespace removal
+    if not ignore_code_blocks:
+        return _remove_extra_whitespace(text)
+
+    # Pattern to match code blocks (``` or ~~~ delimited)
+    code_block_pattern = re.compile(r"(```.*?```|~~~.*?~~~)", re.DOTALL)
+    blocks = []  # Store processed text blocks
+    last_idx = 0  # Track position in original text
+
+    # Process each code block found
+    for match in code_block_pattern.finditer(text):
+        start, end = match.span()
+
+        # Clean whitespace in text before this code block
+        if start > last_idx:
+            blocks.append(_remove_extra_whitespace(text[last_idx:start]))
+
+        # Preserve code block as-is (no whitespace cleaning)
+        blocks.append(text[start:end])
+        last_idx = end
+
+    # Clean remaining text after last code block
+    if last_idx < len(text):
+        blocks.append(_remove_extra_whitespace(text[last_idx:]))
+
+    # Join all blocks back together
+    return "\n".join(block for block in blocks if block.strip() != "")
 
 
 def normalize_unicode(text):

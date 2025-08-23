@@ -1,3 +1,4 @@
+# tests.utils.text_preprocessing
 from src.utils.text_preprocessing import (
     extract_link_text,
     lowercase_text,
@@ -6,7 +7,6 @@ from src.utils.text_preprocessing import (
     remove_punctuation,
     remove_repeated_punctuation,
     remove_stopwords,
-    
 )
 
 
@@ -19,6 +19,28 @@ def test_remove_extra_whitespace():
         == "Leading and trailing spaces"
     )
     assert remove_extra_whitespace("") == ""
+
+    test_data = (
+        "this  is         a block  code \n\n"
+        "```\n"
+        '   print("Hello, World!")\n'
+        "```\n"
+        "~~~\n"
+        '   print("Hello, World!")\n'
+        "~~~\n"
+    )
+
+    expected = (
+        "this is a block code\n\n"
+        "```\n"
+        '   print("Hello, World!")\n'
+        "```\n"
+        "~~~\n"
+        '   print("Hello, World!")\n'
+        "~~~"
+    )
+
+    assert remove_extra_whitespace(test_data, True) == expected
 
 
 def test_remove_punctuation():
@@ -67,8 +89,34 @@ def test_remove_repeated_punctuation():
         == "Single. Punctuation! Stays?"
     )
 
+    test_data = (
+        "this is a block code!!!!!!!!!!!!\n\n"
+        "```\n"
+        '   print("Hello, World!!")\n'
+        "```\n"
+        "~~~\n"
+        '   print("Hello, World!")\n'
+        "~~~"
+    )
+
+    expected = (
+        "this is a block code!\n\n"
+        "```\n"
+        '   print("Hello, World!!")\n'
+        "```\n"
+        "~~~\n"
+        '   print("Hello, World!")\n'
+        "~~~"
+    )
+
+    assert remove_repeated_punctuation(test_data, True) == expected
+
 
 def test_extract_link_text():
     assert extract_link_text("[link text](url)") == "link text"
     assert extract_link_text("No links here.") == "No links here."
     assert extract_link_text("[another link](http://example.com)") == "another link"
+
+
+if __name__ == "__main__":
+    test_remove_extra_whitespace()

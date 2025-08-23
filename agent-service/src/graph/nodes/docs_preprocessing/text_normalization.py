@@ -23,8 +23,10 @@ class TextNormalization:
 
         cleaned_data = normalize_unicode(data)
         cleaned_data = lowercase_text(cleaned_data)
-        # cleaned_data = remove_extra_whitespace(cleaned_data)
-        # cleaned_data = remove_repeated_punctuation(cleaned_data)
+        cleaned_data = remove_extra_whitespace(cleaned_data, ignore_code_blocks=True)
+        cleaned_data = remove_repeated_punctuation(
+            cleaned_data, ignore_code_blocks=True
+        )
         cleaned_data = extract_link_text(cleaned_data)
 
         return_data = AIMessage(content=cleaned_data)
