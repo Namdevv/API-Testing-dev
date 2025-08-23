@@ -17,6 +17,7 @@ def test_is_section_heading():
     assert is_section_heading("2.1 ) Another valid section header")
     assert is_section_heading("    2.1: Another valid section header")
     assert is_section_heading("    2 Another valid section header")
+    assert is_section_heading("# 3.4 safety and security requirements")
 
     # Roman numeral section headings
     assert is_section_heading("II. Introduction")

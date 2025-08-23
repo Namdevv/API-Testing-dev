@@ -10,6 +10,7 @@ from src.utils.preprocessing.text_preprocessing import (
     extract_link_text,
     lowercase_text,
     normalize_unicode,
+    remove_extra_newlines,
     remove_extra_whitespace,
     remove_repeated_punctuation,
 )
@@ -28,6 +29,7 @@ class TextNormalization:
             cleaned_data, ignore_code_blocks=True
         )
         cleaned_data = extract_link_text(cleaned_data)
+        cleaned_data = remove_extra_newlines(cleaned_data, ignore_code_blocks=True)
 
         return_data = AIMessage(content=cleaned_data)
 

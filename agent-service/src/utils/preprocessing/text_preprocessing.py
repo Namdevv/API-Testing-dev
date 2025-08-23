@@ -111,6 +111,51 @@ def remove_extra_whitespace(text, ignore_code_blocks=False):
     return "\n".join(block for block in blocks if block.strip() != "")
 
 
+def remove_extra_newlines(text, ignore_code_blocks=False):
+    """
+    Remove extra newlines from text while optionally preserving code blocks.
+
+    Args:
+        text (str): Input text to clean
+        ignore_code_blocks (bool): If True, preserve formatting inside code blocks
+
+    Returns:
+        str: Text with extra newlines removed
+    """
+
+    def _remove_extra_newlines(text):
+        # Replace multiple consecutive newlines with single newline
+        return re.sub(r"\n{2,}", "\n", text)
+
+    # If not preserving code blocks, apply simple newline removal
+    if not ignore_code_blocks:
+        return _remove_extra_newlines(text)
+
+    # Pattern to match code blocks (``` or ~~~ delimited)
+    code_block_pattern = re.compile(r"(```.*?```|~~~.*?~~~)", re.DOTALL)
+    blocks = []  # Store processed text blocks
+    last_idx = 0  # Track position in original text
+
+    # Process each code block found
+    for match in code_block_pattern.finditer(text):
+        start, end = match.span()
+
+        # Clean newlines in text before this code block
+        if start > last_idx:
+            blocks.append(_remove_extra_newlines(text[last_idx:start]))
+
+        # Preserve code block as-is (no newline cleaning)
+        blocks.append(text[start:end])
+        last_idx = end
+
+    # Clean remaining text after last code block
+    if last_idx < len(text):
+        blocks.append(_remove_extra_newlines(text[last_idx:]))
+
+    # Join all blocks back together
+    return "".join(blocks)
+
+
 def normalize_unicode(text):
     return unicodedata.normalize("NFKC", text)
 

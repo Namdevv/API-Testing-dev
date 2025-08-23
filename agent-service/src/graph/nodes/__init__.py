@@ -8,6 +8,7 @@ from src.graph.nodes.docs_preprocessing import (
     stopword_removal,
     text_normalization,
     data_store,
+    section_based_chunking,
 )
 
 from src.graph.nodes.simple_qa import simple_qa

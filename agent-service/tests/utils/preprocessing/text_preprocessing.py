@@ -3,6 +3,7 @@ from src.utils.preprocessing.text_preprocessing import (
     extract_link_text,
     lowercase_text,
     normalize_unicode,
+    remove_extra_newlines,
     remove_extra_whitespace,
     remove_punctuation,
     remove_repeated_punctuation,
@@ -116,6 +117,37 @@ def test_extract_link_text():
     assert extract_link_text("[link text](url)") == "link text"
     assert extract_link_text("No links here.") == "No links here."
     assert extract_link_text("[another link](http://example.com)") == "another link"
+
+
+def test_remove_extra_newlines():
+    assert remove_extra_newlines("Hello\n\n\nWorld") == "Hello\nWorld"
+    assert remove_extra_newlines("This\n\n\n\n\nis a test") == "This\nis a test"
+    assert remove_extra_newlines("Single\nNewline") == "Single\nNewline"
+    assert remove_extra_newlines("Double\n\nNewline") == "Double\nNewline"
+    assert remove_extra_newlines("") == ""
+    assert remove_extra_newlines("No newlines") == "No newlines"
+
+    test_data = (
+        "This has many\n\n\n\nnewlines\n\n\n"
+        "```\n"
+        "code block with\n\n\n\nmany newlines\n"
+        "```\n\n\n\n"
+        "~~~\n"
+        "another code\n\n\n\nblock\n"
+        "~~~\n\n\n\nEnd"
+    )
+
+    expected = (
+        "This has many\nnewlines\n"
+        "```\n"
+        "code block with\n\n\n\nmany newlines\n"
+        "```\n"
+        "~~~\n"
+        "another code\n\n\n\nblock\n"
+        "~~~\nEnd"
+    )
+
+    assert remove_extra_newlines(test_data, True) == expected
 
 
 if __name__ == "__main__":

@@ -15,6 +15,8 @@ def is_section_heading(line):
     - Uppercase headings: e.g., "KẾT LUẬN", "GIỚI THIỆU"
     """
 
+    line = re.sub(r"^\s*#+\s*", "", line)
+
     # Pattern for numbered section headings
     numbered_pattern = r"^\s*\d+(\.\d+)*[.\):\-]?\s+.+"
     # Pattern for Roman numeral section headings, with ) or : or - after numerals
@@ -45,8 +47,11 @@ def get_all_section_headings(text: str) -> list[str]:
 
 def is_a_child_of(current_section: str, parent_section: str) -> bool:
     # Implement logic to determine if current_section is a child of parent_section
-    curr_heading = current_section.strip().split(" ")[0]
-    parent_heading = parent_section.strip().split(" ")[0]
+    curr_heading = re.sub(r"^\s*#+\s*", "", current_section)
+    parent_heading = re.sub(r"^\s*#+\s*", "", parent_section)
+
+    curr_heading = curr_heading.strip().split(" ")[0]
+    parent_heading = parent_heading.strip().split(" ")[0]
 
     return curr_heading.startswith(parent_heading) and curr_heading != parent_heading
 
@@ -115,7 +120,6 @@ def create_hierarchical_section_blocks(text: str) -> list[str]:
         section_to_content[current_heading.strip()] = extract_section_content(
             text, current_heading, next_heading
         )
-
     # Group parent sections with their child sections
     parent_child_blocks: list[list[str]] = []
     current_parent_child_group: list[str] = []
@@ -132,6 +136,7 @@ def create_hierarchical_section_blocks(text: str) -> list[str]:
 
     # Filter blocks that have parent-child relationships (more than 1 section)
     parent_child_blocks = [block for block in parent_child_blocks if len(block) > 1]
+    print(parent_child_blocks)
 
     # Generate text blocks with parent and child content
     hierarchical_text_blocks = []
@@ -140,11 +145,15 @@ def create_hierarchical_section_blocks(text: str) -> list[str]:
         combined_block_text = ""
         # Reverse to put parent first, then child
         for section_heading in parent_child_group[::-1]:
-            combined_block_text += f"{section_heading}\n"
-            combined_block_text += f"{section_to_content[section_heading.strip()]}\n"
+            combined_block_text += f"{section_heading}"
+            content = section_to_content[section_heading.strip()]
+            if content:
+                combined_block_text += f"\n{content}\n"
+            else:
+                combined_block_text += "\n"
+
         hierarchical_text_blocks.append(combined_block_text)
 
-    print(hierarchical_text_blocks)
     return hierarchical_text_blocks
 
 

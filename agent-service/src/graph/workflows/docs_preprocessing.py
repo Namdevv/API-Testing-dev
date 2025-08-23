@@ -58,6 +58,10 @@ class DocsPreprocessingWorkflow(BaseModel):
             NODE_REGISTRY.get("docs_preprocessing.metadata_removal")(),
         )
         self.workflow.add_node(
+            "section_based_chunking",
+            NODE_REGISTRY.get("docs_preprocessing.section_based_chunking")(),
+        )
+        self.workflow.add_node(
             "text_extractor",
             NODE_REGISTRY.get("text_extractor.text_extractor")(),
         )
@@ -71,7 +75,8 @@ class DocsPreprocessingWorkflow(BaseModel):
         self.workflow.set_entry_point("entry")
         self.workflow.add_edge("entry", "text_extractor")
         self.workflow.add_edge("text_extractor", "text_normalization")
-        self.workflow.add_edge("text_normalization", "metadata_removal")
+        self.workflow.add_edge("text_normalization", "section_based_chunking")
+        self.workflow.add_edge("section_based_chunking", "metadata_removal")
         self.workflow.add_edge("metadata_removal", "stopword_removal")
         self.workflow.add_edge("stopword_removal", "data_store")
         self.workflow.add_edge("data_store", END)
