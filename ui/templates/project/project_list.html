@@ -1,0 +1,39 @@
+{% extends 'main/base.html' %}
+
+{% block title %}Project List{% endblock %}
+
+{% load static %}
+
+{% block content %}
+<h1>Project List</h1>
+<table class="table table-hover mt-3">
+    <thead>
+        <tr>
+            <th scope="col">Project Name</th>
+            <th scope="col">Description</th>
+            <th scope="col">Test Suites</th>
+            <th scope="col">Test Cases</th>
+            <th scope="col">Created At</th>
+            <th scope="col">Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for project in projects %}
+        <tr>
+            <td>{{ project.project_name }}</td>
+            <td>{{ project.description }}</td>
+            <td>{{ project.test_suites_count_per_project }}</td>
+            <td>{{ project.test_cases_count_per_project }}</td>
+            <td>{{ project.created_at }}</td>
+            <td>
+                <a href="{% url 'project_detail_by_uuid' project_uuid=project.uuid %}" class="btn btn-info">View</a>
+                <a href="{% url 'project_edit' project_uuid=project.uuid %}" class="btn btn-secondary">Edit</a>
+                <a href="{% url 'project_delete' project_uuid=project.uuid %}" class="btn btn-danger">Delete</a>
+            </td>
+        </tr>
+        {% endfor %}
+
+</table>
+        <a href="{% url 'project_add' %}" class="btn btn-primary mt-3">Add New Project</a>
+    </tbody>
+{% endblock %}

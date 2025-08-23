@@ -1,0 +1,134 @@
+{% load static %}
+<div class="d-flex flex-column flex-shrink-0 p-3 text-white bg-dark" style="width: 280px; min-height: 100vh;">
+    <a href="/" class="d-flex align-items-center mb-3 mb-md-0 me-md-auto text-white text-decoration-none">
+        <span class="fs-4">APIT</span>
+    </a>
+    <hr>
+    {% if user.is_authenticated %}
+    <ul class="nav nav-pills flex-column mb-auto">
+        <li class="nav-item">
+            <a href="{% url 'home' %}" class="nav-link text-white" aria-current="page">
+                <i class="fa fa-home me-2"></i>
+                Home
+            </a>
+        </li>
+        <li class="mb-1">
+            <div class="d-flex align-items-center">
+                <div class="btn-group">
+                    <button class="btn btn-toggle align-items-center rounded collapsed" data-bs-toggle="collapse" data-bs-target="#project-collapse" aria-expanded="false">
+                        <i class="fa fa-folder me-2"></i>
+                        <span class="d-none d-lg-inline">Projects</span>
+                        <i class="fa fa-chevron-down ms-2"></i>
+                    </button>
+                </div>
+                <div class="btn-group ms-auto me-3">
+                    <a href="{% url 'project_add' %}" class="btn btn-primary" ><i class="fa fa-plus"></i></a>
+                </div>
+            </div>
+            
+            <div class="collapse" id="project-collapse">
+                <ul class="btn-toggle-nav list-unstyled fw-normal pb-1 small">
+                    {% for project in recent_projects %}
+                    <li>
+                        <a href="{% url 'project_detail_by_uuid' project_uuid=project.uuid %}" class="nav-link text-white" aria-current="page">
+                            <i class="fa fa-folder me-2"></i>
+                            {{ project.project_name }}
+                        </a>
+                    </li>
+                    {% endfor %}
+                    {% if recent_projects %}
+                    <li><hr class="dropdown-divider"></li>
+                    {% endif %}
+                    <li>
+                        <a href="{% url 'project_list' %}" class="nav-link text-white" aria-current="page">
+                            <i class="fa fa-list me-2"></i>
+                            All Projects
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </li>
+        {% if test_suites_show %}
+        <li class="mb-1">
+            <div class="d-flex align-items-center">
+                <div class="btn-group">
+                    <button class="btn btn-toggle align-items-center rounded collapsed" data-bs-toggle="collapse" data-bs-target="#test-suite-collapse" aria-expanded="false">
+                        <i class="fa fa-tasks me-2"></i>
+                        <span class="d-none d-lg-inline">Test Suites</span>
+                        <i class="fa fa-chevron-down ms-2"></i>
+                    </button>
+                </div>
+                
+                <div class="btn-group ms-auto me-3">
+                    <a href="{% url 'test_suite_add' project_uuid=project.uuid %}" class="btn btn-primary" ><i class="fa fa-plus"></i></a>
+                </div>
+            </div>
+        {% if test_suites %}    
+            <div class="collapse" id="test-suite-collapse">
+                <ul class="btn-toggle-nav list-unstyled fw-normal pb-1 small">
+                    {% for test_suite in test_suites %}
+                    <li>
+                        <a href="{% url 'test_suite_detail' test_suite_uuid=test_suite.uuid %}" class="nav-link text-white" aria-current="page">
+                            <i class="fa fa-folder me-2"></i>
+                            {{ test_suite.test_suite_name }}
+                        </a>
+                    </li>
+                    {% endfor %}
+                    {% if test_suites %}
+                    <li><hr class="dropdown-divider"></li>
+                    {% endif %}
+                    <li>
+                        <!-- <a href="{% url 'project_list' %}" class="nav-link text-white" aria-current="page">
+                            <i class="fa fa-list me-2"></i>
+                            All Projects
+                        </a> -->
+                    </li>
+                </ul>
+            </div>
+        {% endif %}
+        {% endif %}
+        </li>
+        
+    </ul>
+    <hr>
+    <div class="dropdown">
+        <a href="#" class="d-flex align-items-center text-white text-decoration-none dropdown-toggle" id="dropdownUser1" data-bs-toggle="dropdown" aria-expanded="false">
+            {% if user.is_superuser %}
+            <img src="{% static 'img/admin-icon.png' %}" alt="" width="32" height="32" class="rounded-circle me-2">
+            <strong>{{ user.username }} (Admin)</strong>
+            {% else %}
+            <img src="{% static 'img/user-icon.png' %}" alt="" width="32" height="32" class="rounded-circle me-2">
+            <strong>{{ user.username }}</strong>
+            {% endif %}
+        </a>
+        <ul class="dropdown-menu dropdown-menu-dark text-small shadow" aria-labelledby="dropdownUser1">
+            <li><a class="dropdown-item" href="{% url 'project_add' %}">New project...</a></li>
+            <li><a class="dropdown-item" href="#">Settings</a></li>
+            <li><a class="dropdown-item" href="#">Profile</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" href="{% url 'logout' %}">Sign out</a></li>
+        </ul>
+    </div>
+    {% else %}
+    <ul class="nav nav-pills flex-column mb-auto">
+        <li class="nav-item">
+            <a href="{% url 'home' %}" class="nav-link text-white" aria-current="page">
+                <i class="fa fa-home me-2"></i>
+                Home
+            </a>
+        </li>
+        <li>
+            <a href="{% url 'login' %}" class="nav-link text-white">
+                <i class="fa fa-sign-in-alt me-2"></i>
+                Login
+            </a>
+        </li>
+        <li>
+            <a href="{% url 'register' %}" class="nav-link text-white">
+                <i class="fa fa-user-plus me-2"></i>
+                Register
+            </a>
+        </li>
+    </ul>
+    {% endif %}
+</div>
