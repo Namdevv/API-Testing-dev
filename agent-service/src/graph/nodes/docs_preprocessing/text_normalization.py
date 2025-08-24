@@ -5,7 +5,6 @@ from langchain_core.messages import AIMessage
 from pydantic import validate_call
 
 from src.models.agent.docs_preprocessing_state_model import DocsPreProcessingStateModel
-from src.registry.nodes import register_node
 from src.utils.preprocessing.text_preprocessing import (
     extract_link_text,
     lowercase_text,
@@ -16,8 +15,7 @@ from src.utils.preprocessing.text_preprocessing import (
 )
 
 
-@register_node("docs_preprocessing.text_normalization")
-class TextNormalization:
+class TextNormalizationNode:
     @validate_call
     def __call__(self, state: DocsPreProcessingStateModel) -> Dict[str, Any]:
         data = state.messages[-1].content

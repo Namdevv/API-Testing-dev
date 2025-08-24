@@ -4,7 +4,6 @@ from langchain.tools import BaseTool
 from langchain_core.messages import ToolMessage
 from pydantic import BaseModel, Field
 
-from src.registry.tools import register_tool
 from src.repositories.document.document_repository import DocumentRepository
 
 
@@ -24,7 +23,6 @@ class _DocumentInput(BaseModel):
     )
 
 
-@register_tool("document.document_tool")
 class DocumentTool(BaseTool):
     name: str = "document_tool"
     description: str = """

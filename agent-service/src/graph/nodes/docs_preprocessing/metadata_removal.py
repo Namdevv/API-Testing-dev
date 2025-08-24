@@ -10,7 +10,6 @@ from pydantic import model_validator, validate_call
 from src.base.service.base_agent_service import BaseAgentService
 from src.enums.enums import LanguageEnum
 from src.models.agent.docs_preprocessing_state_model import DocsPreProcessingStateModel
-from src.registry.nodes import register_node
 
 prompts = {}
 
@@ -25,8 +24,7 @@ with open(
     prompts[LanguageEnum.EN] = f.read()
 
 
-@register_node("docs_preprocessing.metadata_removal")
-class MetaDataRemoval(BaseAgentService):
+class MetaDataRemovalNode(BaseAgentService):
     llm_model: str = "gemma-3-27b-it"
     llm_temperature: float = 0.0
     llm_top_p: float = 0.1
@@ -74,7 +72,7 @@ class MetaDataRemoval(BaseAgentService):
 
 if __name__ == "__main__":
     load_dotenv()
-    meta_data_removal = MetaDataRemoval()
+    meta_data_removal = MetaDataRemovalNode()
 
     string = """
     Tác giả: Nguyễn Văn A

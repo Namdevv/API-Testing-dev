@@ -1,12 +1,12 @@
 from langchain_core.messages import HumanMessage
 
+from src.graph import nodes
 from src.models.agent.docs_preprocessing_state_model import DocsPreProcessingStateModel
-from src.registry.nodes import NODE_REGISTRY
 
 
 def test_text_normalization_vn():
     data_test = "Học là sinh trường trung học!"
-    node = NODE_REGISTRY.get("docs_preprocessing.text_normalization")()
+    node = nodes.TextNormalizationNode()
 
     input_mess = HumanMessage(
         content=data_test,
@@ -19,7 +19,7 @@ def test_text_normalization_vn():
 
 def test_text_normalization_en():
     data_test = "I Am a student at the high school!"
-    node = NODE_REGISTRY.get("docs_preprocessing.text_normalization")()
+    node = nodes.TextNormalizationNode()
 
     input_mess = HumanMessage(
         content=data_test,

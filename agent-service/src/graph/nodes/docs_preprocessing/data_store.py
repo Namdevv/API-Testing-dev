@@ -6,13 +6,11 @@ from pydantic import model_validator, validate_call
 
 from src.models.agent.docs_preprocessing_state_model import DocsPreProcessingStateModel
 from src.models.document.document_model import DocumentModel
-from src.registry.nodes import register_node
 from src.repositories.document.document_repository import DocumentRepository
 from src.utils.common import split_by_size
 
 
-@register_node("docs_preprocessing.data_store")
-class DataStore(DocumentRepository):
+class DataStoreNode(DocumentRepository):
     chunk_size: int = 1000
     chunk_overlap: int = 200
     batch_size: int = 10

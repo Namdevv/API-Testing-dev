@@ -1,7 +1,7 @@
 from langchain_core.messages import HumanMessage
 
+from src.graph import nodes
 from src.models.agent.docs_preprocessing_state_model import DocsPreProcessingStateModel
-from src.registry.nodes import NODE_REGISTRY
 
 
 def test_metadata_removal_vn():
@@ -17,7 +17,7 @@ def test_metadata_removal_vn():
     Các vấn đề phát sinh đã được ghi nhận và xử lý kịp thời.
     Kế hoạch tuần tới là tối ưu hóa thuật toán và cập nhật tài liệu hướng dẫn sử dụng.
     """
-    node = NODE_REGISTRY.get("docs_preprocessing.metadata_removal")()
+    node = nodes.MetaDataRemovalNode()
 
     input_mess = HumanMessage(
         content=data_test,
@@ -46,7 +46,7 @@ def test_metadata_removal_en():
     Issues that arose were recorded and addressed in a timely manner.
     The plan for next week is to optimize the algorithm and update the user manual.
     """
-    node = NODE_REGISTRY.get("docs_preprocessing.metadata_removal")()
+    node = nodes.MetaDataRemovalNode()
 
     input_mess = HumanMessage(
         content=data_test,

@@ -11,16 +11,14 @@ from docling.datamodel.pipeline_options import (
 from docling.document_converter import DocumentConverter, InputFormat, PdfFormatOption
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from pydantic import BaseModel, model_validator, validate_call
+from pydantic import model_validator, validate_call
 
 from src.base.service.base_agent_service import BaseAgentService
 from src.models.agent.docs_preprocessing_state_model import DocsPreProcessingStateModel
-from src.registry.nodes import register_node
 from src.utils.common import get_percent_space
 
 
-@register_node("text_extractor.text_extractor")
-class TextExtractor(BaseAgentService):
+class TextExtractorNode(BaseAgentService):
     llm_model: str = "gemma-3-27b-it"
     llm_temperature: float = 0.0
     llm_top_p: float = 0.1
@@ -112,7 +110,7 @@ if __name__ == "__main__":
         content=source,
     )
     state = DocsPreProcessingStateModel(user_input="", messages=[input_mess], lang="vi")
-    extractor = TextExtractor()
+    extractor = TextExtractorNode()
     result = extractor(state)
     print("Extracted text:", result["data"][-1])
 

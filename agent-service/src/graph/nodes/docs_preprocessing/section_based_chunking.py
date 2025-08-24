@@ -10,7 +10,6 @@ from pydantic import model_validator, validate_call
 from src.base.service.base_agent_service import BaseAgentService
 from src.enums.enums import LanguageEnum
 from src.models.agent.docs_preprocessing_state_model import DocsPreProcessingStateModel
-from src.registry.nodes import register_node
 from src.utils.preprocessing.section_preprocessing import (
     create_hierarchical_section_blocks,
 )
@@ -28,8 +27,7 @@ with open(
     prompts[LanguageEnum.EN] = f.read()
 
 
-@register_node("docs_preprocessing.section_based_chunking")
-class SectionBasedChunking(BaseAgentService):
+class SectionBasedChunkingNode(BaseAgentService):
     llm_model: str = "gemma-3-27b-it"
     llm_temperature: float = 0.0
     llm_top_p: float = 0.1

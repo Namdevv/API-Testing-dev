@@ -3,12 +3,10 @@ from typing import Optional
 from langgraph.graph import END, StateGraph
 from pydantic import BaseModel, Field
 
+from src.graph import nodes
 from src.models.agent.docs_preprocessing_state_model import DocsPreProcessingStateModel
-from src.registry.nodes import NODE_REGISTRY
-from src.registry.workflows import register_workflow
 
 
-@register_workflow("docs_preprocessing")
 class DocsPreprocessingWorkflow(BaseModel):
     collection_name: str = Field(
         default="e_commerce_ai", description="Collection name for vector database"
@@ -43,31 +41,31 @@ class DocsPreprocessingWorkflow(BaseModel):
     def _add_nodes(self):
         """Add all nodes to the workflow"""
         # Add basic nodes
-        self.workflow.add_node("entry", NODE_REGISTRY.get("conversation.entry")())
+        self.workflow.add_node("entry", nodes.EntryNode())
 
         self.workflow.add_node(
             "stopword_removal",
-            NODE_REGISTRY.get("docs_preprocessing.stopword_removal")(),
+            nodes.StopWordRemovalNode(),
         )
         self.workflow.add_node(
             "text_normalization",
-            NODE_REGISTRY.get("docs_preprocessing.text_normalization")(),
+            nodes.TextNormalizationNode(),
         )
         self.workflow.add_node(
             "metadata_removal",
-            NODE_REGISTRY.get("docs_preprocessing.metadata_removal")(),
+            nodes.MetaDataRemovalNode(),
         )
         self.workflow.add_node(
             "section_based_chunking",
-            NODE_REGISTRY.get("docs_preprocessing.section_based_chunking")(),
+            nodes.SectionBasedChunkingNode(),
         )
         self.workflow.add_node(
             "text_extractor",
-            NODE_REGISTRY.get("text_extractor.text_extractor")(),
+            nodes.TextExtractorNode(),
         )
         self.workflow.add_node(
             "data_store",
-            NODE_REGISTRY.get("docs_preprocessing.data_store")(),
+            nodes.DataStoreNode(),
         )
 
     def _setup_edges(self):

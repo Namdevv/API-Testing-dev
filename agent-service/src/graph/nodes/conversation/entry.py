@@ -3,11 +3,8 @@ from typing import Any, Dict
 
 from langchain_core.messages import HumanMessage
 
-from src.registry.nodes import register_node
 
-
-@register_node("conversation.entry")
-class Entry:
+class EntryNode:
     def __call__(self, state) -> Dict[str, Any]:
 
         return {

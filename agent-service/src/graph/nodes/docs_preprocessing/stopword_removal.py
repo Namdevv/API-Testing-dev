@@ -8,14 +8,12 @@ from pydantic import validate_call
 
 from src.enums.enums import LanguageEnum
 from src.models.agent.docs_preprocessing_state_model import DocsPreProcessingStateModel
-from src.registry.nodes import register_node
 from src.utils.preprocessing.text_preprocessing import (
     remove_stopwords,
 )
 
 
-@register_node("docs_preprocessing.stopword_removal")
-class StopWordRemoval:
+class StopWordRemovalNode:
     @validate_call
     def __call__(self, state: DocsPreProcessingStateModel) -> Dict[str, Any]:
         data = state.messages[-1].content
@@ -48,7 +46,7 @@ if __name__ == "__main__":
         (object,),
         {"data": "Tôi    là một học sinh ở trường trung học.!!!@@@", "lang": "vi"},
     )()
-    data_cleaning = StopWordRemoval()
+    data_cleaning = StopWordRemovalNode()
     result = data_cleaning(state)
     logger.info(
         f"Data cleaning result: {result=={'cleaned_data': ['học sinh trường trung học']}}"

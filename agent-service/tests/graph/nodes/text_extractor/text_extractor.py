@@ -1,12 +1,12 @@
 from langchain_core.messages import HumanMessage
 
+from src.graph import nodes
 from src.models.agent.docs_preprocessing_state_model import DocsPreProcessingStateModel
-from src.registry.nodes import NODE_REGISTRY
 
 
 def test_text_extractor_pdf_vn():
     data_test = "assents/test_extractor/test_vn.pdf"
-    node = NODE_REGISTRY.get("text_extractor.text_extractor")()
+    node = nodes.TextExtractorNode()
     input_mess = HumanMessage(
         content=data_test,
     )
@@ -18,7 +18,7 @@ def test_text_extractor_pdf_vn():
 
 def test_text_extractor_pdf_en():
     data_test = "assents/test_extractor/test_en.pdf"
-    node = NODE_REGISTRY.get("text_extractor.text_extractor")()
+    node = nodes.TextExtractorNode()
     input_mess = HumanMessage(
         content=data_test,
     )
@@ -31,7 +31,7 @@ def test_text_extractor_pdf_en():
 
 def test_text_extractor_via_link():
     source = "https://www.octoparse.com/use-cases/e-commerce"
-    node = NODE_REGISTRY.get("text_extractor.text_extractor")()
+    node = nodes.TextExtractorNode()
     input_mess = HumanMessage(
         content=source,
     )
@@ -44,7 +44,7 @@ def test_text_extractor_via_link():
 
 def test_text_extractor_with_split_text():
     data_test = "assents/test_extractor/test_split_text.pdf"
-    node = NODE_REGISTRY.get("text_extractor.text_extractor")()
+    node = nodes.TextExtractorNode()
     input_mess = HumanMessage(
         content=data_test,
     )

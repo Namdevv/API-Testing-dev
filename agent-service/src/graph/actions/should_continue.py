@@ -1,9 +1,6 @@
 from pydantic import BaseModel
 
-from src.registry.actions import register_action
 
-
-@register_action("should_continue")
 def should_continue(state: BaseModel) -> str:
     """Determine if the workflow should continue or end.
 

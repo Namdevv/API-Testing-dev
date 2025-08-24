@@ -5,13 +5,8 @@ from langgraph.prebuilt import ToolNode
 from pydantic import BaseModel, Field
 
 from src.models.agent.docs_preprocessing_state_model import DocsPreProcessingStateModel
-from src.registry.actions import ACTION_REGISTRY
-from src.registry.nodes import NODE_REGISTRY
-from src.registry.tools import TOOL_REGISTRY
-from src.registry.workflows import register_workflow
 
 
-@register_workflow("simple_qa")
 class SimpleQAWorkflow(BaseModel):
     agent_state: BaseModel = Field(
         default=DocsPreProcessingStateModel,
