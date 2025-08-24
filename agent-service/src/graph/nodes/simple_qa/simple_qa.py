@@ -14,7 +14,7 @@ class SimpleQANode(BaseAgentService):
     llm_top_p: float = 0.1
     llm_top_k: int = 3
 
-    path_to_prompt = {
+    path_to_prompt: dict[LanguageEnum, str] = {
         LanguageEnum.VI: "src/graph/nodes/simple_qa/prompts/simple_qa_vi.txt",
         LanguageEnum.EN: "src/graph/nodes/simple_qa/prompts/simple_qa_en.txt",
     }
