@@ -4,6 +4,7 @@ from langgraph.graph import END, StateGraph
 from langgraph.prebuilt import ToolNode
 from pydantic import BaseModel, Field
 
+from src.graph import actions, nodes, tools
 from src.models.agent.docs_preprocessing_state_model import DocsPreProcessingStateModel
 
 
@@ -35,11 +36,11 @@ class SimpleQAWorkflow(BaseModel):
         """Add all nodes to the workflow"""
         # Add basic nodes
 
-        self.workflow.add_node("entry", NODE_REGISTRY.get("conversation.entry")())
+        self.workflow.add_node("entry", nodes.EntryNode())
 
-        document_tool = TOOL_REGISTRY.get("document.document_tool")()
+        document_tool = tools.DocumentTool()
         print(f"Document Tool: {document_tool}")
-        simple_qa_node = NODE_REGISTRY.get("simple_qa.simple_qa")(tools=[document_tool])
+        simple_qa_node = nodes.SimpleQANode(tools=[document_tool])
         print(f"Simple QA Node: {simple_qa_node}")
         self.workflow.add_node(
             "simple_qa",
@@ -57,7 +58,7 @@ class SimpleQAWorkflow(BaseModel):
         self.workflow.add_edge("entry", "simple_qa")
         self.workflow.add_conditional_edges(
             "simple_qa",
-            ACTION_REGISTRY.get("should_continue"),
+            actions.should_continue,
             {
                 "continue": "document_tool",
                 "end": END,
