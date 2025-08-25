@@ -7,6 +7,7 @@ from langchain_core.messages import AIMessage
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from pydantic import model_validator, validate_call
 
+from src import cache
 from src.base.service.base_agent_service import BaseAgentService
 from src.enums.enums import LanguageEnum
 from src.models.agent.docs_preprocessing_state_model import DocsPreProcessingStateModel
@@ -29,12 +30,9 @@ class SectionBasedChunkingNode(BaseAgentService):
         LanguageEnum.EN: "src/graph/nodes/docs_preprocessing/prompts/section_based_chunking_en.txt",
     }
 
-    @validate_call
-    def __call__(self, state: DocsPreProcessingStateModel) -> Dict[str, Any]:
-        data = state.messages[-1].content
-        self.set_system_prompt(lang=state.lang)
-
-        hierarchical_section_blocks = create_hierarchical_section_blocks(data)
+    @cache.cache_func_wrapper
+    def __chunk_and_annotate(self, text: str) -> list[Dict[str, Any]]:
+        hierarchical_section_blocks = create_hierarchical_section_blocks(text)
 
         batches = [
             {
@@ -56,6 +54,14 @@ class SectionBasedChunkingNode(BaseAgentService):
                     "annotation": annotations[i],
                 }
             )
+        return result
+
+    @validate_call
+    def __call__(self, state: DocsPreProcessingStateModel) -> Dict[str, Any]:
+        data = state.messages[-1].content
+        self.set_system_prompt(lang=state.lang)
+
+        result = self.__chunk_and_annotate(data)
 
         return_data = AIMessage(content=result)
 

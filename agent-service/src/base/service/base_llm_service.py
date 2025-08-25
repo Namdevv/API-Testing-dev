@@ -4,6 +4,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAI
 from pydantic import Field, model_validator
 
 from src.base.service.base_multi_api_tokens import BaseMultiApiTokens
+from src.enums.enums import ModelTypeEnum
 from src.settings import GOOGLE_API_KEYS
 
 
@@ -28,6 +29,8 @@ class BaseLlmService(BaseMultiApiTokens):
         le=1000,
         description="Top-k sampling for the LLM, controls the number of highest probability tokens to consider.",
     )
+
+    model_type: str = ModelTypeEnum.llm.value
 
     @model_validator(mode="after")
     def __after_init(self):

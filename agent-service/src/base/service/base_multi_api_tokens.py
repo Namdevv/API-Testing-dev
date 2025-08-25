@@ -13,7 +13,7 @@ LOCK_TIMEOUT = 5
 
 class BaseMultiApiTokens(BaseModel):
     model_type: ModelTypeEnum = Field(
-        default=ModelTypeEnum.llm,
+        default=ModelTypeEnum.llm.value,
         description="Type of model (llm or embedding)",
     )
 

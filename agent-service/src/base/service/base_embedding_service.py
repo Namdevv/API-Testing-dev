@@ -19,7 +19,7 @@ class BaseEmbeddingService(BaseMultiApiTokens):
         ge=1,
         description="The dimension of the embeddings, set after initialization if get_embedding_dim is True.",
     )
-    model_type: str = ModelTypeEnum.embedding
+    model_type: str = ModelTypeEnum.embedding.value
 
     @model_validator(mode="after")
     def __after_init(self):
