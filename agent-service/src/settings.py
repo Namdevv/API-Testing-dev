@@ -85,9 +85,7 @@ def get_engine():
 
 
 def get_redis_client():
-    return redis.Redis(
-        host=REDIS_HOST, port=REDIS_PORT, db=REDIS_DB, decode_responses=True
-    )
+    return redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=REDIS_DB)
 
 
 # --- Logging ---

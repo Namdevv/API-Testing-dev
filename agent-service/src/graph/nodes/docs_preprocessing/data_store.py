@@ -27,17 +27,17 @@ class DataStoreNode(DocumentRepository):
     @validate_call
     def __call__(self, state: DocsPreProcessingStateModel) -> Dict[str, Any]:
         data = state.messages[-1].content
+        collection = state.collection
         doc_name = state.doc_name
-        doc_annotation = state.annotation
 
-        chunks = self.__text_splitter.split_text(data)
         docs = [
             DocumentModel(
-                text=chunk,
+                text=block["content"],
                 doc_name=doc_name,
-                annotations=doc_annotation,
+                annotations=block["annotation"],
+                collection=collection,
             )
-            for chunk in chunks
+            for block in data
         ]
 
         batches = split_by_size(docs, self.batch_size)

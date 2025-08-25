@@ -44,16 +44,8 @@ class DocsPreprocessingWorkflow(BaseModel):
         self.workflow.add_node("entry", nodes.EntryNode())
 
         self.workflow.add_node(
-            "stopword_removal",
-            nodes.StopWordRemovalNode(),
-        )
-        self.workflow.add_node(
             "text_normalization",
             nodes.TextNormalizationNode(),
-        )
-        self.workflow.add_node(
-            "metadata_removal",
-            nodes.MetaDataRemovalNode(),
         )
         self.workflow.add_node(
             "section_based_chunking",
@@ -74,9 +66,7 @@ class DocsPreprocessingWorkflow(BaseModel):
         self.workflow.add_edge("entry", "text_extractor")
         self.workflow.add_edge("text_extractor", "text_normalization")
         self.workflow.add_edge("text_normalization", "section_based_chunking")
-        self.workflow.add_edge("section_based_chunking", "metadata_removal")
-        self.workflow.add_edge("metadata_removal", "stopword_removal")
-        self.workflow.add_edge("stopword_removal", "data_store")
+        self.workflow.add_edge("section_based_chunking", "data_store")
         self.workflow.add_edge("data_store", END)
 
     def get_graph(self):

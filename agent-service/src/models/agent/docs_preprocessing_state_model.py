@@ -34,7 +34,7 @@ class DocsPreProcessingStateModel(BaseModel):
         description="Name of the document",
     )
 
-    annotation: Optional[str] = Field(
+    collection: Optional[str] = Field(
         default_factory=str,
-        description="Annotation for the document",
+        description="Collection for the document",
     )

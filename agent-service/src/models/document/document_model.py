@@ -48,6 +48,17 @@ class DocumentModel(BaseModel):
         },
     )
 
+    collection: str = Field(
+        min_length=3,
+        description="document collection, must be at least 3 characters long.",
+        json_schema_extra={
+            "milvus_config": {
+                "dtype": DataType.VARCHAR,
+                "max_length": 512,  # Milvus VARCHAR max_length
+            }
+        },
+    )
+
     vector: Optional[List[float]] = Field(
         default_factory=list,
         description="embedding vector for the document, must be a list of floats.",
