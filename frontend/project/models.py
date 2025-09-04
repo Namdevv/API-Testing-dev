@@ -28,6 +28,46 @@ class ProjectDocument(models.Model):
     file = models.FileField(upload_to="uploads/", blank=True, null=True)
     link = models.URLField(blank=True, null=True)
     uploaded_at = models.DateTimeField(auto_now_add=True)
+    
+    # AI Processing fields
+    ai_processing_status = models.CharField(
+        max_length=20, 
+        choices=[
+            ('pending', 'Pending'),
+            ('processing', 'Processing'),
+            ('completed', 'Completed'),
+            ('failed', 'Failed')
+        ],
+        default='pending'
+    )
+    ai_processed_at = models.DateTimeField(blank=True, null=True)
+    ai_error_message = models.TextField(blank=True, null=True)
 
     def __str__(self):
         return self.file.name if self.file else self.link
+
+class DocumentSection(models.Model):
+    """Model để lưu các sections được AI extract từ document"""
+    document = models.ForeignKey(ProjectDocument, on_delete=models.CASCADE, related_name="sections")
+    section_title = models.CharField(max_length=500)
+    section_content = models.TextField()
+    section_type = models.CharField(
+        max_length=50,
+        choices=[
+            ('api_endpoint', 'API Endpoint'),
+            ('function', 'Function'),
+            ('class', 'Class'),
+            ('method', 'Method'),
+            ('parameter', 'Parameter'),
+            ('response', 'Response'),
+            ('example', 'Example'),
+            ('other', 'Other')
+        ],
+        default='other'
+    )
+    page_number = models.IntegerField(blank=True, null=True)
+    is_selected = models.BooleanField(default=False)  # User có chọn section này không
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.document} - {self.section_title}"
