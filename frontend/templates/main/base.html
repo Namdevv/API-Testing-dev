@@ -14,7 +14,11 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet" />
     {% block extra_css %}{% endblock %}
     <link rel="stylesheet" href="{% static 'css/base.css' %}">
+    <link rel="stylesheet" href="{% static 'css/message.css' %}">
 
+    <style>
+
+    </style>
 </head>
 
 <body>
@@ -23,47 +27,138 @@
         {% include "main/sidebar.html" %}
         
         <main class="flex-grow-1 p-4">
-        {% if messages %}
-        <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 2000;">
-            {% for message in messages %}
-            {% with tags=message.tags %}
-            <div
-                class="toast toast-neo border-0 shadow-lg show"
-                role="alert"
-                aria-live="assertive"
-                aria-atomic="true"
-                data-bs-delay="5000"
-                data-bs-autohide="true"
-            >
-                <div class="toast-body d-flex align-items-start gap-3">
-                {# Icon theo level #}
-                {% if "success" in tags %}
-                    <span class="toast-icon text-success"><i class="bx bx-check-circle"></i></span>
-                {% elif "warning" in tags %}
-                    <span class="toast-icon text-warning"><i class="bx bx-error-circle"></i></span>
-                {% elif "error" in tags or "danger" in tags %}
-                    <span class="toast-icon text-danger"><i class="bx bx-x-circle"></i></span>
-                {% elif "info" in tags %}
-                    <span class="toast-icon text-info"><i class="bx bx-info-circle"></i></span>
-                {% else %}
-                    <span class="toast-icon text-primary"><i class="bx bx-bell"></i></span>
-                {% endif %}
-
-                <div class="flex-grow-1">
-                    {{ message }}
-                </div>
-
-                <button type="button" class="btn-close ms-2" data-bs-dismiss="toast" aria-label="Close"></button>
-                </div>
-            </div>
-            {% endwith %}
-            {% endfor %}
-        </div>
-        {% endif %}
+            <!-- Notification Container -->
+            {% if messages %}
+            <div id="notification-container" class="notification-container"></div>
+            {% endif %}
 
             {% block content %}{% endblock %}
         </main>
     </div>
+
+    <script>
+        // Notification System
+        class NotificationSystem {
+            constructor() {
+                this.container = document.getElementById('notification-container');
+                this.notifications = [];
+            }
+
+            show(type, title, message = '', duration = 5000) {
+                if (!this.container) return;
+                
+                const notification = this.createElement(type, title, message);
+                this.container.appendChild(notification);
+                this.notifications.push(notification);
+
+                // Auto remove after duration
+                if (duration > 0) {
+                    setTimeout(() => {
+                        this.remove(notification);
+                    }, duration);
+                }
+
+                return notification;
+            }
+
+            createElement(type, title, message) {
+                const div = document.createElement('div');
+                div.className = `notification ${type}`;
+                
+                const icon = this.getIcon(type);
+                
+                div.innerHTML = `
+                    <div class="notification-icon">
+                        ${icon}
+                    </div>
+                    <div class="notification-content">
+                        <div class="notification-title">${title}</div>
+                        ${message ? `<div>${message}</div>` : ''}
+                    </div>
+                    <button class="notification-close" onclick="notificationSystem.remove(this.parentElement)">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                        </svg>
+                    </button>
+                `;
+
+                return div;
+            }
+
+            getIcon(type) {
+                const icons = {
+                    info: '<svg viewBox="0 0 24 24"><path d="M13,9H11V7H13M13,17H11V11H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z"/></svg>',
+                    warning: '<svg viewBox="0 0 24 24"><path d="M13,13H11V7H13M13,17H11V15H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z"/></svg>',
+                    error: '<svg viewBox="0 0 24 24"><path d="M12,2C17.53,2 22,6.47 22,12C22,17.53 17.53,22 12,22C6.47,22 2,17.53 2,12C2,6.47 6.47,2 12,2M15.59,7L12,10.59L8.41,7L7,8.41L10.59,12L7,15.59L8.41,17L12,13.41L15.59,17L17,15.59L13.41,12L17,8.41L15.59,7Z"/></svg>',
+                    success: '<svg viewBox="0 0 24 24"><path d="M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M11,16.5L18,9.5L16.59,8.09L11,13.67L7.91,10.59L6.5,12L11,16.5Z"/></svg>'
+                };
+                return icons[type] || icons.info;
+            }
+
+            remove(notification) {
+                if (!notification || !notification.parentElement) return;
+                
+                notification.classList.add('removing');
+                
+                setTimeout(() => {
+                    if (notification.parentElement) {
+                        notification.parentElement.removeChild(notification);
+                    }
+                    
+                    const index = this.notifications.indexOf(notification);
+                    if (index > -1) {
+                        this.notifications.splice(index, 1);
+                    }
+                }, 300);
+            }
+
+            clear() {
+                this.notifications.forEach(notification => this.remove(notification));
+            }
+        }
+
+        // Initialize notification system
+        const notificationSystem = new NotificationSystem();
+
+        // Helper function for easy use
+        function showNotification(type, title, message = '', duration = 5000) {
+            return notificationSystem.show(type, title, message, duration);
+        }
+
+        // Django messages integration
+        function showDjangoMessages(messages) {
+            messages.forEach(message => {
+                let type = 'info';
+                if (message.tags) {
+                    if (message.tags.includes('error') || message.tags.includes('danger')) {
+                        type = 'error';
+                    } else if (message.tags.includes('warning')) {
+                        type = 'warning';
+                    } else if (message.tags.includes('success')) {
+                        type = 'success';
+                    }
+                }
+                showNotification(type, message.message, '', 5000);
+            });
+        }
+
+        // Process Django messages when page loads
+        {% if messages %}
+        document.addEventListener('DOMContentLoaded', function() {
+            const djangoMessages = [
+                {% for message in messages %}
+                {
+                    message: "{{ message|escapejs }}",
+                    tags: "{{ message.tags|escapejs }}"
+                }{% if not forloop.last %},{% endif %}
+                {% endfor %}
+            ];
+
+            showDjangoMessages(djangoMessages);
+        });
+        {% endif %}
+    </script>
+
 </body>
 
 </html>
