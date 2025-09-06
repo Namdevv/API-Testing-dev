@@ -9,21 +9,20 @@ def load_and_merge_model(model_path: str):
         model_name (str): The name of the model to load.
 
     Returns:
-        model: The loaded language model.
-        tokenizer: The tokenizer associated with the model.
+        str: The path to the directory where the merged model is saved.
     """
     from unsloth import FastLanguageModel
 
     model, tokenizer = FastLanguageModel.from_pretrained(
         model_name=model_path,
         dtype=None,  # None for auto detection
-        max_seq_length=512,  # Choose any for long context!
+        max_seq_length=1024,  # Choose any for long context!
         load_in_4bit=True,  # 4 bit quantization to reduce memory
         full_finetuning=False,  # [NEW!] We have full finetuning now!
         # token = "hf_...", # use one if using gated models
     )
 
-    if model_path.endswith("-lora-adapter"):
+    if "-lora-adapter" in model_path:
         model_path = model_path.replace("-lora-adapter", "")
     else:
         model = FastLanguageModel.get_peft_model(
@@ -51,16 +50,44 @@ def load_and_merge_model(model_path: str):
     save_directory = f"{model_path}-merged"
     model.save_pretrained_merged(save_directory, tokenizer)
 
-    return model, tokenizer
+    return save_directory
+
+
+def copy_model_file(merged_model_path: str, model_file_dir: str):
+    import glob
+    import logging
+    import os
+    import shutil
+
+    logging.basicConfig(level=logging.INFO)
+
+    model_file_paths = glob.glob(f"{model_file_dir}/*.modelfile", recursive=True)
+
+    for model_file_path in model_file_paths:
+        model_name = os.path.splitext(os.path.basename(model_file_path))[0]
+
+        merged_model_name = merged_model_path.split("/")[-1]
+
+        if merged_model_name.startswith(model_name):
+            logging.info(f"Copying {model_file_path} to {merged_model_path}")
+            shutil.copyfile(model_file_path, merged_model_path + "/Modelfile")
+            return
 
 
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="load and merge model")
     parser.add_argument("model_path", type=str, help="Model path to load")
-
+    parser.add_argument(
+        "--model_file_dir",
+        type=str,
+        help="Model file directory to copy",
+        default="modelfiles",
+    )
     args = parser.parse_args()
 
     model_path = args.model_path
+    model_file_dir = args.model_file_dir
 
-    load_and_merge_model(model_path)
+    merged_model_path = load_and_merge_model(model_path)
+    # copy_model_file(merged_model_path, model_file_dir)

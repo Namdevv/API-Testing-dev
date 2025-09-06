@@ -1,6 +1,7 @@
-unsloth==2025.8.10
-unsloth_zoo==2025.8.9
-transformers==4.56.0
+unsloth==2025.9.1
+unsloth_zoo==2025.9.2
+
+transformers==4.55.4 #no-update
 
 notebook
 ipywidgets

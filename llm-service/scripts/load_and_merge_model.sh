@@ -6,17 +6,20 @@ CURRENT_PATH=$(pwd)
 MODEL_NAME="$1"
 shift
 
-VOLUME_MOUNT="$CURRENT_PATH/models/"
+VOLUME_MOUNT_MODELS="$CURRENT_PATH/models/"
+VOLUME_MOUNT_MODELFILES="$CURRENT_PATH/modelfiles/"
 
-if [ -d "$VOLUME_MOUNT$MODEL_NAME" ]; then
-    echo "'$VOLUME_MOUNT$MODEL_NAME' exists!"
+if [ -d "$VOLUME_MOUNT_MODELS$MODEL_NAME" ]; then
+    echo "'$VOLUME_MOUNT_MODELS$MODEL_NAME' exists!"
 else
-    echo "'$VOLUME_MOUNT$MODEL_NAME' does not exist!"
+    echo "'$VOLUME_MOUNT_MODELS$MODEL_NAME' does not exist!"
     exit 1
 fi
 
 MODEL_PATH="models/$MODEL_NAME"
 
-docker run --rm --gpus all -v $VOLUME_MOUNT:/app/models \
+docker run --rm --gpus all \
+    -v $VOLUME_MOUNT_MODELS:/app/models \
+    -v $VOLUME_MOUNT_MODELFILES:/app/modelfiles \
     load_and_merge_model \
     "$MODEL_PATH"
