@@ -91,11 +91,11 @@ python3 manage.py migrate
 #### 5. Run Serverpython manage.py runserver
 Windows
 ```bat
-python manage.py runserver localhost:8001
+python manage.py runserver
 ```
 Linux
 ```bat
-python3 manage.py runserver localhost:8001
+python3 manage.py runserver
 ```
 
 ### Production Machine
@@ -107,8 +107,8 @@ PRODUCTION_ENVIRONMENT=True
 # Django Settings
 DEBUG=False
 DJANGO_SECRET_KEY=YOUR_DJANGO_SECRET_KEY
-DJANGO_ALLOWED_HOSTS=localhost
-DJANGO_CSRF_TRUSTED_ORIGINS=http://localhost:8001
+DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1
+DJANGO_CSRF_TRUSTED_ORIGINS=http://localhost:8000
 
 # Database Settings
 DATABASE_ENGINE=postgresql_psycopg2
@@ -125,24 +125,22 @@ POSTGRES_PASSWORD=YOUR_DATABASE_PASSWORD
 
 #### 2. Docker Compose
 ```bat
-docker-compose up -d --build
+docker compose up -d --build
 ```
 
-#### 3. Make Database Migration
-Remember to shut down containers before making migrations.
-```bat
-docker-compose down --rmi all
-```
+#### 3. Making Database Migration
+
 ##### makemigrations
 ```bat
-docker-compose exec django-web python manage.py makemigrations
+docker compose exec django-web python manage.py makemigrations
 ```
 ##### migrate
 ```bat
-docker-compose exec django-web python manage.py migrate
+docker compose exec django-web python manage.py migrate
 ```
 
+
 #### 4. Run Server
-Simply run `docker-compose up -d --build` and access the web using https://localhost:8001.
+Simply run `docker compose up -d --build` and access the web using https://localhost:8000 or https://127.0.0.1:8000.
 
 
