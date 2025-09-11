@@ -134,7 +134,14 @@ USE_I18N = True
 
 USE_TZ = True
 
-
+# Emailing settings
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_FROM = 'ec2003alternative@gmail.com'
+EMAIL_HOST_USER = 'ec2003alternative@gmail.com'
+EMAIL_HOST_PASSWORD = 'rxjyrwyjnwpftlqa'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
