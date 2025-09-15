@@ -3,7 +3,10 @@
 
 # export COMPOSE_PROJECT_NAME=$COMPOSE_PROJECT_NAME
 export PROJECT_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-COMPOSE_PROJECT_NAME=$(basename "$PROJECT_ROOT")
+export COMPOSE_PROJECT_NAME=$(basename "$PROJECT_ROOT")
+
+echo "Project root: $PROJECT_ROOT"
+echo "Compose project name: $COMPOSE_PROJECT_NAME"
 
 # load env file and export variables if it exists
 if [ -f "$PROJECT_ROOT/.env" ]; then
