@@ -1,6 +1,8 @@
 # src.graph.nodes.docs_preprocessing.data_cleaning
+import uuid
 from typing import Any, Dict
 
+from langchain_core.messages import AIMessage
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from pydantic import model_validator, validate_call
 
@@ -30,8 +32,10 @@ class DataStoreNode(DocumentRepository):
         collection = state.collection
         doc_name = state.doc_name
 
+        doc_id = str(uuid.uuid4())
         docs = [
             DocumentModel(
+                doc_id=doc_id,
                 text=block["content"],
                 doc_name=doc_name,
                 annotations=block["annotation"],
@@ -42,8 +46,8 @@ class DataStoreNode(DocumentRepository):
 
         batches = split_by_size(docs, self.batch_size)
         for batch in batches:
-            self.create_records(batch)
+            self.create_records(data=batch, overwrite=True)
 
         return {
-            "messages": [],
+            "messages": [AIMessage(content=doc_id)],
         }
