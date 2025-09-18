@@ -1,11 +1,8 @@
 # src.graph.nodes.docs_preprocessing.section_based_chunking
-import logging
 from typing import Any, Dict
 
-from dotenv import load_dotenv
 from langchain_core.messages import AIMessage
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from pydantic import model_validator, validate_call
+from pydantic import validate_call
 
 from src import cache
 from src.base.service.base_agent_service import BaseAgentService
