@@ -22,14 +22,18 @@ def merge_chunks(chunks):
 
 
 @validate_call
-def create_unique_id(text: str = Field(min_length=1)) -> int:
+def create_unique_id(text: str = Field(min_length=1)) -> str:
     """Create a unique id with text as a seed"""
     # assert len(text) < 1000, "text must not be too long"
 
     # create a unique id for the product
     hash_bytes = hashlib.md5(text.encode()).digest()
     int_64bit = int.from_bytes(hash_bytes[:8], "big", signed=True)  # Dạng signed
-    return int_64bit
+
+    if int_64bit < 0:
+        return "0" + str(abs(int_64bit))
+    else:
+        return str(int_64bit)
 
 
 def get_percent_space(text):
