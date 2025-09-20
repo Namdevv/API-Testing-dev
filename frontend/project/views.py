@@ -32,10 +32,10 @@ def call_docs_preprocessing_api(document_link, doc_name, collection="default"):
     """Gọi API docs preprocessing"""
     try:
         payload = {
-            "user_input": f"Process document: {doc_name}",
-            "lang": "en",
-            "messages": [],
-            "doc_name": doc_name,
+            "user_input": f"{document_link}",
+            # "lang": "en",
+            # "messages": [],
+            # "doc_name": doc_name,
             "collection": collection
         }
         
@@ -45,18 +45,21 @@ def call_docs_preprocessing_api(document_link, doc_name, collection="default"):
         }
         
         # Nếu có link, thêm vào user_input
-        if document_link:
-            payload["user_input"] += f" from URL: {document_link}"
+        # if document_link:
+        #     payload["user_input"] += f" from URL: {document_link}"
         
         response = requests.post(
-            AI_AGENT_ENDPOINT,
+            DOCS_PREPROCESSING_ENDPOINT,
             json=payload,
             headers=headers,
             timeout=300,  # 5 minutes timeout
             verify=False  # Disable SSL verification for development
         )
+
+        print(response.json())
         
         if response.status_code == 200:
+            print("API Response:", response.json())
             return response.json()
         else:
             raise Exception(f"API call failed with status {response.status_code}: {response.text}")
