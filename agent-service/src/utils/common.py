@@ -40,3 +40,10 @@ def get_percent_space(text):
     total = len(text)
     spaces = text.count(" ")
     return spaces / total * 100 if total > 0 else 0
+
+def is_number(s):
+    try:
+        int(s)
+        return True
+    except ValueError:
+        return False
