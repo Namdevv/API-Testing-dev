@@ -19,9 +19,9 @@ def create_project(
     return CreateProjectResponseModel(project_id=project.project_id)
 
 
-@router.get("/all")
-def get_all_projects() -> list[repositories.ProjectRepository]:
-    projects = repositories.ProjectRepository().get_all()
+@router.get("/all/{user_id}")
+def get_all_projects(user_id: str) -> list[repositories.ProjectRepository]:
+    projects = repositories.ProjectRepository().get_all(user_id=user_id)
     return projects
 
 

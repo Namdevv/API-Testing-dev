@@ -18,6 +18,10 @@ class ProjectRepository(SQLModel, table=True):
         description="Project ID, must be unique.",
     )
 
+    user_id: str = Field(
+        description="User ID associated with the project.",
+    )
+
     project_name: str = Field(
         description="Name of the project",
         max_length=256,
@@ -42,6 +46,7 @@ class ProjectRepository(SQLModel, table=True):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
+                "user_id": "0",
                 "project_name": "My Project",
                 "description": "This is a sample project description.",
             }
@@ -63,7 +68,7 @@ class ProjectRepository(SQLModel, table=True):
 
         return self
 
-    def get_all(self):
+    def get_all(self, user_id: str):
         """
         Retrieve all Project records from the database.
         Args:
@@ -72,7 +77,9 @@ class ProjectRepository(SQLModel, table=True):
             List[ProjectRepository]: A list of all Project instances in the database.
         """
         with Session(get_engine()) as session:
-            projects = session.exec(select(ProjectRepository)).all()
+            projects = session.exec(
+                select(ProjectRepository).where(ProjectRepository.user_id == user_id)
+            ).all()
         return projects
 
     @classmethod
