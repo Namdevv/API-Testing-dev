@@ -23,6 +23,12 @@ class ProjectRepository(SQLModel, table=True):
         max_length=256,
     )
 
+    description: str = Field(
+        default_factory=str,
+        description="Description of the project",
+        max_length=512,
+    )
+
     created_at: datetime = Field(
         default=datetime.now(),
         description="Creation timestamp",
@@ -37,6 +43,7 @@ class ProjectRepository(SQLModel, table=True):
         json_schema_extra={
             "example": {
                 "project_name": "My Project",
+                "description": "This is a sample project description.",
             }
         }
     )

@@ -6,18 +6,17 @@ from src import repositories
 router = APIRouter(prefix="/project", tags=["Project"])
 
 
-class FileResponseModel(BaseModel):
-    file_id: str
-    file_name: str
+class CreateProjectResponseModel(BaseModel):
+    project_id: str
 
 
 @router.post("/create")
 def create_project(
     project: repositories.ProjectRepository,
-) -> repositories.ProjectRepository:
+) -> CreateProjectResponseModel:
 
     project = project.create()
-    return project
+    return CreateProjectResponseModel(project_id=project.project_id)
 
 
 @router.get("/all")
