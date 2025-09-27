@@ -9,6 +9,7 @@ from src.graph.nodes.docs_preprocessing.text_normalization import TextNormalizat
 from src.graph.nodes.docs_preprocessing.section_based_chunking import (
     SectionBasedChunkingNode,
 )
-from src.graph.nodes.docs_preprocessing.data_store import DataStoreNode
-
+from src.graph.nodes.docs_preprocessing.document_metadata_processor import (
+    DocumentMetadataProcessorNode,
+)
 from src.graph.nodes.simple_qa.simple_qa import SimpleQANode

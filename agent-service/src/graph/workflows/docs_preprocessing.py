@@ -41,11 +41,13 @@ class DocsPreprocessingWorkflow(BaseModel):
     def _add_nodes(self):
         """Add all nodes to the workflow"""
         # Add basic nodes
-        self.workflow.add_node("entry", nodes.EntryNode())
-
         self.workflow.add_node(
             "text_normalization",
             nodes.TextNormalizationNode(),
+        )
+        self.workflow.add_node(
+            "document_metadata_processor",
+            nodes.DocumentMetadataProcessorNode(),
         )
         self.workflow.add_node(
             "section_based_chunking",
@@ -55,19 +57,14 @@ class DocsPreprocessingWorkflow(BaseModel):
             "text_extractor",
             nodes.TextExtractorNode(),
         )
-        self.workflow.add_node(
-            "data_store",
-            nodes.DataStoreNode(),
-        )
 
     def _setup_edges(self):
         """Configure all edges and entry point"""
-        self.workflow.set_entry_point("entry")
-        self.workflow.add_edge("entry", "text_extractor")
+        self.workflow.set_entry_point("text_extractor")
         self.workflow.add_edge("text_extractor", "text_normalization")
-        self.workflow.add_edge("text_normalization", "section_based_chunking")
-        self.workflow.add_edge("section_based_chunking", "data_store")
-        self.workflow.add_edge("data_store", END)
+        self.workflow.add_edge("text_normalization", "document_metadata_processor")
+        self.workflow.add_edge("document_metadata_processor", "section_based_chunking")
+        self.workflow.add_edge("section_based_chunking", END)
 
     def get_graph(self):
         """Get the compiled graph"""

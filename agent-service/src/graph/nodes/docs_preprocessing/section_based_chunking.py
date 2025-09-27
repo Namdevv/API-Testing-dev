@@ -8,12 +8,13 @@ from src import cache
 from src.base.service.base_agent_service import BaseAgentService
 from src.enums.enums import LanguageEnum
 from src.models.agent.docs_preprocessing_state_model import DocsPreProcessingStateModel
-from src.utils.preprocessing.section_preprocessing import (
-    create_hierarchical_section_blocks,
-)
+from src.models.document.document_model import DocumentModel
+from src.repositories.document.document_repository import DocumentRepository
+from src.utils.common import split_by_size
+from src.utils.preprocessing import section_preprocessing
 
 
-class SectionBasedChunkingNode(BaseAgentService):
+class SectionBasedChunkingNode(DocumentRepository):
     llm_model: str = "gemma-3-27b-it"
     llm_temperature: float = 0.0
     llm_top_p: float = 0.1
@@ -27,40 +28,40 @@ class SectionBasedChunkingNode(BaseAgentService):
         LanguageEnum.EN: "src/graph/nodes/docs_preprocessing/prompts/section_based_chunking_en.txt",
     }
 
-    @cache.cache_func_wrapper
-    def __chunk_and_annotate(self, text: str) -> list[Dict[str, Any]]:
-        hierarchical_section_blocks = create_hierarchical_section_blocks(text)
-
-        batches = [
-            {
-                "input": chunk,
-                "chat_history": [],
-            }
-            for chunk in hierarchical_section_blocks
-        ]
-        annotations = self.runs_parallel(
-            batches, batch_size=self.batch_size, max_workers=self.max_workers
-        )
-
-        result = []
-
-        for i in range(len(hierarchical_section_blocks)):
-            result.append(
-                {
-                    "content": hierarchical_section_blocks[i],
-                    "annotation": annotations[i],
-                }
-            )
-        return result
-
     @validate_call
     def __call__(self, state: DocsPreProcessingStateModel) -> Dict[str, Any]:
         data = state.messages[-1].content
-        self.set_system_prompt(lang=state.lang)
+        doc_id = state.messages[-1].doc_id
+        all_section_headings = state.messages[-1].all_section_headings
 
-        result = self.__chunk_and_annotate(data)
+        section_to_content = section_preprocessing.extract_section_contents(
+            data, all_section_headings
+        )
+        parent_child_blocks = section_preprocessing.create_parent_child_blocks(
+            all_section_headings
+        )
+        print(f"Parent-child blocks: {parent_child_blocks}")
+        hierarchical_section_blocks = (
+            section_preprocessing.create_hierarchical_section_blocks(
+                section_to_content, parent_child_blocks
+            )
+        )
 
-        return_data = AIMessage(content=result)
+        docs = [
+            DocumentModel(
+                doc_id=doc_id,
+                text=hierarchical_section_block,
+            )
+            for hierarchical_section_block in hierarchical_section_blocks
+        ]
+
+        batches = split_by_size(docs, self.batch_size)
+        for batch in batches:
+            self.create_records(data=batch, overwrite=True)
+
+        # result = self.__chunk_and_annotate(data)
+
+        return_data = AIMessage(content=doc_id)
 
         return {
             "messages": [return_data],
