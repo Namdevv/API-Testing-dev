@@ -94,11 +94,21 @@ def get_all_section_headings(text: str, mine_pattern: bool = False) -> list[str]
     mined_patterns = list(pattern_mining(text).keys()) if mine_pattern else []
 
     lines = text.splitlines()
-    return [
-        line.strip()
-        for line in lines
-        if is_section_heading(line, extra_patterns=mined_patterns)
-    ]
+
+    section_headings = []
+    for line in lines:
+        if is_section_heading(line, extra_patterns=mined_patterns):
+            pattern = r"\s*#*\s*(.*)\s*"
+            match = re.match(pattern, line)
+            section_heading = None
+            if match:
+                section_heading = match.group(1)
+            else:
+                section_heading = line.strip()
+
+            section_headings.append(section_heading)
+
+    return section_headings
 
 
 def is_a_child_of(current_section: str, parent_section: str) -> bool:
@@ -231,7 +241,7 @@ def create_hierarchical_section_blocks(
         # Reverse to put parent first, then child
         for section_heading in parent_child_group[:2][::-1]:
             # Remove leading '#' if present
-            clean_heading = section_heading.strip().lstrip("#").strip()
+            clean_heading = section_heading
             combined_block_text += f"{clean_heading}"
             content = section_to_content[section_heading.strip()]
             if content:

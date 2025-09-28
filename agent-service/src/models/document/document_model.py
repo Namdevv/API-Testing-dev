@@ -37,50 +37,6 @@ class DocumentModel(BaseModel):
         },
     )
 
-    selected: bool = Field(
-        default=False,
-        description="whether the document is selected or not.",
-        json_schema_extra={
-            "milvus_config": {
-                "dtype": DataType.BOOL,
-            }
-        },
-    )
-
-    doc_name: str = Field(
-        min_length=3,
-        max_length=512,
-        description="document name",
-        json_schema_extra={
-            "milvus_config": {
-                "dtype": DataType.VARCHAR,
-                "max_length": 512,  # Milvus VARCHAR max_length
-            }
-        },
-    )
-
-    annotations: str = Field(
-        min_length=3,
-        description="document annotations, must be at least 3 characters long.",
-        json_schema_extra={
-            "milvus_config": {
-                "dtype": DataType.VARCHAR,
-                "max_length": 512,  # Milvus VARCHAR max_length
-            }
-        },
-    )
-
-    collection: str = Field(
-        min_length=3,
-        description="document collection, must be at least 3 characters long.",
-        json_schema_extra={
-            "milvus_config": {
-                "dtype": DataType.VARCHAR,
-                "max_length": 512,  # Milvus VARCHAR max_length
-            }
-        },
-    )
-
     vector: Optional[List[float]] = Field(
         default_factory=list,
         description="embedding vector for the document, must be a list of floats.",
@@ -107,8 +63,7 @@ class DocumentModel(BaseModel):
         json_schema_extra={
             "example": {
                 "id": 1,
-                "doc_name": "Document Name",
-                "annotations": "Document Annotations",
+                "doc_id": "doc_123",
                 "vector": [0.1, 0.2, 0.3],
                 "text": "Document Text",
             }
@@ -120,7 +75,7 @@ class DocumentModel(BaseModel):
     def check_id(self):
         if self.id is None:
             # create a new id from defined seed
-            seed = self.annotations + self.doc_name + self.text
+            seed = self.doc_id + self.text
             if seed:
                 self.id = create_unique_id(seed)
             else:

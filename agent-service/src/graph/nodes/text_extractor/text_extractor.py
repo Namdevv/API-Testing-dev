@@ -94,6 +94,8 @@ class TextExtractorNode(BaseAgentService):
     @validate_call
     def __call__(self, state: DocsPreProcessingStateModel):
         doc_url = state.doc_url
+        if not doc_url.startswith("http"):
+            doc_url = "data/" + doc_url
         lang = state.lang.value
         doc_name = state.doc_name
 
