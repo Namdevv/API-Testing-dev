@@ -5,6 +5,7 @@ from pydantic import (
     ConfigDict,
 )
 from sqlmodel import Field, SQLModel
+
 from src.settings import get_now_vn
 
 
@@ -21,6 +22,7 @@ class DocumentMetadataRepository(SQLModel, table=True):
     project_id: str = Field(
         description="Project ID, must be unique.",
         max_length=64,
+        foreign_key="project.project_id",
     )
 
     doc_name: str = Field(

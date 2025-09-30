@@ -7,8 +7,6 @@ from sqlmodel import Session
 
 from src import repositories
 from src.models.agent.docs_preprocessing_state_model import DocsPreProcessingStateModel
-from src.models.document.document_model import DocumentModel
-from src.repositories.document.document_repository import DocumentRepository
 from src.settings import get_engine
 from src.utils.common import split_by_size
 from src.utils.preprocessing import section_preprocessing
@@ -48,7 +46,7 @@ class DocumentProcessingNode(BaseModel):
                 continue
             text = f"{heading}\n{content}"
             docs.append(
-                DocumentModel(
+                repositories.DocumentContentRepository(
                     doc_id=doc_id,
                     text=text,
                 )
@@ -56,7 +54,7 @@ class DocumentProcessingNode(BaseModel):
 
         batches = split_by_size(docs, self.batch_size)
         for batch in batches:
-            DocumentRepository().create_records(data=batch, overwrite=True)
+            repositories.DocumentContentRepository.create_records(data=batch)
 
         return_data = AIMessage(
             content=doc_id,

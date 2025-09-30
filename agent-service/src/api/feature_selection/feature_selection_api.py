@@ -4,8 +4,6 @@ from typing import Optional
 from fastapi import APIRouter, FastAPI
 from pydantic import BaseModel
 
-from src.repositories.document.document_repository import DocumentRepository
-
 document_repo = None
 
 
@@ -13,7 +11,6 @@ document_repo = None
 async def lifespan(app: FastAPI):
     global document_repo
 
-    document_repo = DocumentRepository()
     yield
 
 

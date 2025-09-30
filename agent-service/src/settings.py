@@ -40,7 +40,7 @@ POSTGRES_USER = os.getenv("POSTGRES_USER", "admin")
 POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "admin")
 POSTGRES_HOST = os.getenv("POSTGRES_HOST", "localhost")
 POSTGRES_PORT = os.getenv("POSTGRES_PORT", "5432")
-DATABASE_URL = f"postgresql+psycopg2://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
+DATABASE_URL = f"postgresql+psycopg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
 
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
 REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
@@ -50,14 +50,10 @@ MINIO_URL = os.getenv("MINIO_URL", "localhost:9000")
 MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY", "minioadmin")
 MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY", "minioadmin")
 
-MILVUS_HOST = os.getenv("MILVUS_HOST", "localhost")
-MILVUS_PORT = os.getenv("MILVUS_PORT", "19530")
-MILVUS_TOKEN = os.getenv("MILVUS_TOKEN", "root:Milvus")
 
-MILVUS_URI = "http://{}:{}".format(MILVUS_HOST, MILVUS_PORT)
+EMBEDDING_DIM = 3072
 
 GOOGLE_API_KEYS = None
-
 
 with open("env/google_api_keys.txt", "r") as f:
     GOOGLE_API_KEYS = [line.strip() for line in f.readlines() if line.strip()]
@@ -86,6 +82,19 @@ def get_minio_client():
 # --- Hàm khởi tạo ---
 def get_engine():
     return create_engine(DATABASE_URL)
+
+
+def create_vector_extension():
+    """Create the 'vector' extension in Postgres if it does not exist."""
+    from sqlalchemy import text
+
+    engine = get_engine()
+    with engine.connect() as conn:
+        conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector;"))
+        conn.commit()
+
+
+create_vector_extension()
 
 
 # initialize database
