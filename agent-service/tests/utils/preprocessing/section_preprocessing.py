@@ -1,5 +1,5 @@
-# tests.utils.preprocessing.section_preprocessing
-from src.utils.preprocessing.section_preprocessing import (
+# tests.common.preprocessing.section_preprocessing
+from src.common.preprocessing.section_preprocessing import (
     create_hierarchical_section_blocks,
     extract_section_content,
     extract_section_identifier_title,

@@ -6,11 +6,11 @@ from langchain_core.messages import AIMessage
 from nltk.corpus import stopwords as nltk_stopwords
 from pydantic import validate_call
 
-from src.enums.enums import LanguageEnum
-from src.models.agent.docs_preprocessing_state_model import DocsPreProcessingStateModel
-from src.utils.preprocessing.text_preprocessing import (
+from src.common.preprocessing.text_preprocessing import (
     remove_stopwords,
 )
+from src.enums.enums import LanguageEnum
+from src.models.agent.docs_preprocessing_state_model import DocsPreProcessingStateModel
 
 
 class StopWordRemovalNode:

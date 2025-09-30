@@ -1,9 +1,9 @@
-# src.utils.preprocessing.section_preprocessing
+# src.common.preprocessing.section_preprocessing
 import re
 from typing import Optional
 
-from src.utils.common import is_number
-from src.utils.preprocessing.text_preprocessing import remove_extra_whitespace
+from src.common.common import is_number
+from src.common.preprocessing.text_preprocessing import remove_extra_whitespace
 
 
 def extract_section_identifier_title(

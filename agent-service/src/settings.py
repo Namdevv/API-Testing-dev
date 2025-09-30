@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 from minio import Minio
 from sqlmodel import SQLModel, create_engine
 
-from src.utils.check_google_api_tokens import check_google_api_tokens
+from src.common.check_google_api_tokens import check_google_api_tokens
 
 load_dotenv()
 

@@ -7,9 +7,9 @@ from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAI
 from pydantic import Field, model_validator, validate_call
 
 from src.base.service.base_multi_api_tokens import BaseMultiApiTokens
+from src.common.common import split_by_size
 from src.enums.enums import LanguageEnum, ModelTypeEnum
 from src.settings import ENVIRONMENT, GOOGLE_API_KEYS
-from src.utils.common import split_by_size
 
 
 class BaseAgentService(BaseMultiApiTokens):

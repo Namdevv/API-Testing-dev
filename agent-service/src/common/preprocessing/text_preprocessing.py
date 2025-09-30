@@ -1,4 +1,4 @@
-# src.utils.text_preprocessing
+# src.common.text_preprocessing
 import re
 import string
 import unicodedata

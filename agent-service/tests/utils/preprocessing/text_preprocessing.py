@@ -1,5 +1,5 @@
-# tests.utils.text_preprocessing
-from src.utils.preprocessing.text_preprocessing import (
+# tests.common.text_preprocessing
+from src.common.preprocessing.text_preprocessing import (
     extract_link_text,
     lowercase_text,
     normalize_unicode,

@@ -6,10 +6,10 @@ from pydantic import BaseModel, validate_call
 from sqlmodel import Session
 
 from src import repositories
+from src.common.common import split_by_size
+from src.common.preprocessing import section_preprocessing
 from src.models.agent.docs_preprocessing_state_model import DocsPreProcessingStateModel
 from src.settings import get_engine
-from src.utils.common import split_by_size
-from src.utils.preprocessing import section_preprocessing
 
 
 class DocumentProcessingNode(BaseModel):

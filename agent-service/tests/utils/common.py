@@ -1,5 +1,5 @@
-# tests.utils.common
-from src.utils.common import (
+# tests.common.common
+from src.common.common import (
     get_percent_space,
     merge_chunks,
     split_by_size,
