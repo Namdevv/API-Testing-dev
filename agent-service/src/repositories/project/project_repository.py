@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from typing import Optional
 
 from pydantic import (
     ConfigDict,
@@ -68,7 +69,10 @@ class ProjectRepository(SQLModel, table=True):
 
         return self
 
-    def get_all(self, user_id: str):
+    @classmethod
+    def get_all(
+        cls, user_id: str, session: Optional[Session] = None
+    ) -> list["ProjectRepository"]:
         """
         Retrieve all Project records from the database.
         Args:
@@ -76,14 +80,13 @@ class ProjectRepository(SQLModel, table=True):
         Returns:
             List[ProjectRepository]: A list of all Project instances in the database.
         """
-        with Session(get_engine()) as session:
-            projects = session.exec(
-                select(ProjectRepository).where(ProjectRepository.user_id == user_id)
-            ).all()
+        session = session or Session(get_engine())
+        with session:
+            projects = session.exec(select(cls).where(cls.user_id == user_id)).all()
         return projects
 
     @classmethod
-    def delete_by_id(cls, project_id):
+    def delete_by_id(cls, project_id, session: Optional[Session] = None) -> bool:
         """
         Delete a Project record from the database by project_id.
         Args:
@@ -92,10 +95,33 @@ class ProjectRepository(SQLModel, table=True):
         Returns:
             bool: True if deletion was successful, False otherwise.
         """
-        with Session(get_engine()) as session:
+        session = session or Session(get_engine())
+        with session:
             project = session.get(cls, project_id)
             if project:
                 session.delete(project)
+                session.commit()
+                return True
+            return False
+
+    @classmethod
+    def update_updated_at(
+        cls, project_id: str, session: Optional[Session] = None
+    ) -> bool:
+        """
+        Update the 'updated_at' timestamp of a Project record.
+        Args:
+            session: An initialized SQLModel session.
+            project_id: The ID of the project to update.
+        Returns:
+            bool: True if update was successful, False otherwise.
+        """
+        session = session or Session(get_engine())
+        with session:
+            project = session.get(cls, project_id)
+            if project:
+                project.updated_at = get_now_vn()
+                session.add(project)
                 session.commit()
                 return True
             return False

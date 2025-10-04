@@ -1,15 +1,46 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from sqlmodel import Session, select
 
 from src import repositories
-from src.settings import get_engine
+from src.graph import nodes
+from src.graph.workflows.docs_preprocessing import DocsPreprocessingWorkflow
+from src.models import DocsPreProcessingStateModel
+from src.enums import enums
 
 router = APIRouter(prefix="/document", tags=["Document"])
 
 
-class CreateProjectResponseModel(BaseModel):
+class DocsPreProcessingResponseModel(BaseModel):
+    doc_id: str
+
+
+class ProjectResponseModel(BaseModel):
     project_id: str
+    lang: enums.LanguageEnum
+
+
+class ResponseAnnotateFRModel(BaseModel):
+    fr_annotations: dict[str, list[dict[str, str]]]
+
+
+@router.post("/docs-preprocessing")
+def docs_preprocessing(
+    item: DocsPreProcessingStateModel,
+) -> DocsPreProcessingResponseModel:
+    workflow = DocsPreprocessingWorkflow()
+
+    result = workflow.invoke(item)
+    return DocsPreProcessingResponseModel(doc_id=result["messages"][-1].content)
+
+
+@router.post("/annotate-fr")
+def annotate_fr(
+    item: ProjectResponseModel,
+) -> ResponseAnnotateFRModel:
+    node = nodes.FrAnnotationNode()
+
+    result = node(item)
+    return ResponseAnnotateFRModel(fr_annotations=result["messages"][-1].content[-1])
 
 
 @router.get("/all/{project_id}")

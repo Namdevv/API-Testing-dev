@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from typing import Optional
 
 from pydantic import (
     ConfigDict,
@@ -7,6 +8,7 @@ from pydantic import (
 from sqlmodel import Field, Session, SQLModel, select
 
 from src import repositories
+from src.repositories.project.project_repository import ProjectRepository
 from src.settings import get_engine, get_now_vn
 
 
@@ -72,9 +74,11 @@ class DocumentMetadataRepository(SQLModel, table=True):
     )
 
     @classmethod
-    def get_by_project_id(cls, project_id: str) -> list["DocumentMetadataRepository"]:
-        documents = []
-        with Session(get_engine()) as session:
+    def get_by_project_id(
+        cls, project_id: str, session: Optional[Session] = None
+    ) -> list["DocumentMetadataRepository"]:
+        session = session or Session(get_engine())
+        with session:
             documents = session.exec(
                 select(repositories.DocumentMetadataRepository).where(
                     repositories.DocumentMetadataRepository.project_id == project_id
@@ -83,8 +87,9 @@ class DocumentMetadataRepository(SQLModel, table=True):
         return documents
 
     @classmethod
-    def delete_by_id(cls, doc_id: str) -> bool:
-        with Session(get_engine()) as session:
+    def delete_by_id(cls, doc_id: str, session: Optional[Session] = None) -> bool:
+        session = session or Session(get_engine())
+        with session:
             document = session.get(repositories.DocumentMetadataRepository, doc_id)
             document_contents = session.exec(
                 select(repositories.DocumentContentRepository).where(
@@ -101,3 +106,19 @@ class DocumentMetadataRepository(SQLModel, table=True):
                 return True
             else:
                 return False
+
+    @classmethod
+    def update_document_metadata(
+        cls,
+        document_metadata_repos: list["DocumentMetadataRepository"],
+        session: Optional[Session] = None,
+    ):
+        session = session or Session(get_engine())
+        with session:
+            for document_metadata in document_metadata_repos:
+                session.add(document_metadata)
+            session.commit()
+
+            ProjectRepository.update_updated_at(
+                document_metadata_repos[0].project_id, session=session
+            )
