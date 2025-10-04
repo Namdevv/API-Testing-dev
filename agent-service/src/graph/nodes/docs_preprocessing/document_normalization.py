@@ -5,7 +5,7 @@ from langchain_core.messages import AIMessage
 from pydantic import validate_call
 
 from src.common.preprocessing import section_preprocessing, text_preprocessing
-from src.models.agent.docs_preprocessing_state_model import DocsPreProcessingStateModel
+from src.models import DocsPreProcessingStateModel
 
 
 class DocumentNormalizationNode:

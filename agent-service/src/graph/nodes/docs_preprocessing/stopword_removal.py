@@ -10,7 +10,7 @@ from src.common.preprocessing.text_preprocessing import (
     remove_stopwords,
 )
 from src.enums.enums import LanguageEnum
-from src.models.agent.docs_preprocessing_state_model import DocsPreProcessingStateModel
+from src.models import DocsPreProcessingStateModel
 
 
 class StopWordRemovalNode:

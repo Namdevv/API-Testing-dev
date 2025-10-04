@@ -8,7 +8,7 @@ from sqlmodel import Session
 from src import repositories
 from src.common.common import split_by_size
 from src.common.preprocessing import section_preprocessing
-from src.models.agent.docs_preprocessing_state_model import DocsPreProcessingStateModel
+from src.models import DocsPreProcessingStateModel
 from src.settings import get_engine
 
 

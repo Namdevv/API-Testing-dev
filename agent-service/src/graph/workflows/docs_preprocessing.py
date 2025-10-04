@@ -4,7 +4,7 @@ from langgraph.graph import END, StateGraph
 from pydantic import BaseModel, Field
 
 from src.graph import nodes
-from src.models.agent.docs_preprocessing_state_model import DocsPreProcessingStateModel
+from src.models import DocsPreProcessingStateModel
 
 
 class DocsPreprocessingWorkflow(BaseModel):

@@ -17,7 +17,7 @@ from src import cache
 from src.base.service.base_agent_service import BaseAgentService
 from src.common.common import get_percent_space
 from src.enums.enums import LanguageEnum
-from src.models.agent.docs_preprocessing_state_model import DocsPreProcessingStateModel
+from src.models import DocsPreProcessingStateModel
 
 
 class TextExtractorNode(BaseAgentService):
