@@ -70,6 +70,21 @@ class ProjectRepository(SQLModel, table=True):
         return self
 
     @classmethod
+    def is_exist(cls, project_id: str, session: Optional[Session] = None) -> bool:
+        """
+        Check if a Project record exists in the database by project_id.
+        Args:
+            session: An initialized SQLModel session.
+            project_id: The ID of the project to check.
+        Returns:
+            bool: True if the project exists, False otherwise.
+        """
+        session = session or Session(get_engine())
+        with session:
+            project = session.get(cls, project_id)
+            return project is not None
+
+    @classmethod
     def get_all(
         cls, user_id: str, session: Optional[Session] = None
     ) -> list["ProjectRepository"]:

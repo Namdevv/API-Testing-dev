@@ -28,6 +28,12 @@ class DocumentContentRepository(SQLModel, table=True):
         foreign_key="document_metadata.doc_id",
     )
 
+    heading: str = Field(
+        default_factory=str,
+        description="heading for the content, used for displaying document information.",
+        max_length=512,
+    )
+
     text: Optional[str] = Field(
         default_factory=str,
         description="text for context, used for displaying document information.",

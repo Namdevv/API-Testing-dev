@@ -4,10 +4,12 @@ from typing import Any, Dict
 
 from langchain_core.messages import AIMessage
 from pydantic import validate_call
-from sqlmodel import Session
+from sqlalchemy.exc import NoResultFound
+from sqlmodel import Session, select
 
 from src import repositories
 from src.base.service.base_agent_service import BaseAgentService
+from src.cache.cache_func_wrapper import cache_func_wrapper
 from src.enums.enums import LanguageEnum
 from src.settings import get_engine
 
@@ -27,11 +29,12 @@ class FrAnnotationNode(BaseAgentService):
         LanguageEnum.EN: "src/graph/nodes/docs_preprocessing/prompts/fr_annotation_en.txt",
     }
 
+    @cache_func_wrapper
     def call_agent(self, input: str, chat_history: list[AIMessage] = []) -> AIMessage:
         response = self.run({"input": input, "chat_history": chat_history})
         return response
 
-    def analyze_documents(
+    def analyze_tocs_documents(
         self, document_metadata_repos: list[repositories.DocumentMetadataRepository]
     ) -> str:
         tocs = ""
@@ -42,19 +45,10 @@ class FrAnnotationNode(BaseAgentService):
 
             toc_doc = toc_doc_placeholder.format(i_0=i, i_1=i, text=doc_toc)
             tocs += toc_doc + "\n"
+
         response = self.call_agent(tocs)
 
         return response
-
-    def remove_existing_fr_annotations(
-        self, document_metadata_repos: list[repositories.DocumentMetadataRepository]
-    ) -> list[repositories.DocumentMetadataRepository]:
-        fr_pattern = r"<[mu]-fr-\d+>"
-        for document_metadata in document_metadata_repos:
-            document_metadata.table_of_contents = re.sub(
-                fr_pattern, "", document_metadata.table_of_contents
-            ).strip()
-        return document_metadata_repos
 
     def extract_frs(self, text: str) -> Dict[str, Any]:
         """
@@ -87,32 +81,6 @@ class FrAnnotationNode(BaseAgentService):
             ]
         return grouped_frs
 
-    def update_tocs(
-        self,
-        grouped_frs: Dict[str, Any],
-        document_metadata_repos: list[repositories.DocumentMetadataRepository],
-    ) -> list[repositories.DocumentMetadataRepository]:
-        for group_name, frs in grouped_frs.items():
-            annotation = group_name.split(":")[0]
-            for fr in frs:
-                doc = fr["doc"]
-                heading = fr["heading"]
-
-                document_metadata_repo = document_metadata_repos[int(doc)]
-
-                table_of_contents = document_metadata_repo.table_of_contents
-                pattern = rf"^{re.escape(heading)}\s+\-\s+.*"
-                result = re.search(pattern, table_of_contents, re.MULTILINE)
-
-                if result:
-                    document_metadata_repo.table_of_contents = (
-                        table_of_contents.replace(
-                            result.group(0), f"{result.group(0)}<{annotation}>"
-                        )
-                    )
-
-        return document_metadata_repos
-
     @validate_call
     def __call__(self, state) -> Dict[str, Any]:
         self.set_system_prompt(state.lang)
@@ -120,26 +88,54 @@ class FrAnnotationNode(BaseAgentService):
 
         grouped_frs = {}
         with Session(get_engine()) as session:
+            if not repositories.ProjectRepository.is_exist(
+                project_id=project_id, session=session
+            ):
+                raise NoResultFound(f"Project with ID {project_id} does not exist.")
+
+            # Clear existing FR info and mappings for the project
+            repositories.DocumentFRInfoRepository.delete_by_project_id(
+                project_id=project_id, session=session
+            )
+
             document_metadata_repos = (
                 repositories.DocumentMetadataRepository.get_by_project_id(
                     project_id=project_id, session=session
                 )
             )
 
-            document_metadata_repos = self.remove_existing_fr_annotations(
-                document_metadata_repos
-            )
+            if not document_metadata_repos:
+                raise NoResultFound(f"No documents found for project ID {project_id}.")
 
-            response = self.analyze_documents(document_metadata_repos)
+            response = self.analyze_tocs_documents(document_metadata_repos)
 
             grouped_frs = self.extract_frs(response.content)
 
-            document_metadata_repos = self.update_tocs(
-                grouped_frs, document_metadata_repos
-            )
+            for group_name, doc_infos in grouped_frs.items():
+                fr_info = repositories.DocumentFRInfoRepository(
+                    project_id=project_id, fr_group=group_name
+                )
+                session.add(fr_info)
 
-            repositories.DocumentMetadataRepository.update_document_metadata(
-                document_metadata_repos, session=session
+                for doc_info in doc_infos:
+                    doc_content_repo = session.exec(
+                        select(repositories.DocumentContentRepository).where(
+                            repositories.DocumentContentRepository.heading.like(
+                                f"{doc_info['heading']} -%"
+                            ),
+                        )
+                    ).first()
+                    if doc_content_repo:
+                        fr_to_content = repositories.DocumentFRToContentRepository(
+                            fr_info_id=fr_info.fr_info_id,
+                            content_id=doc_content_repo.content_id,
+                        )
+                        session.add(fr_to_content)
+
+                session.commit()
+
+            repositories.ProjectRepository.update_updated_at(
+                project_id=project_id, session=session
             )
 
         return_data = AIMessage(content=[grouped_frs])
@@ -147,3 +143,13 @@ class FrAnnotationNode(BaseAgentService):
         return {
             "messages": [return_data],
         }
+
+
+if __name__ == "__main__":
+    node = FrAnnotationNode()
+
+    class DummyState:
+        lang = LanguageEnum.EN
+        project_id = "26292c94-45fd-4cb7-bdc1-368a3028ebad"
+
+    node(DummyState())

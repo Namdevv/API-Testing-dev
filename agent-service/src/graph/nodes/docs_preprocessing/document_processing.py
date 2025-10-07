@@ -23,14 +23,14 @@ class DocumentProcessingNode(BaseModel):
         doc_url = state.doc_url
         project_id = state.project_id
 
-        table_and_contents, heading_to_contents = (
+        table_of_contents, heading_to_contents = (
             section_preprocessing.get_table_and_contents(data)
         )
 
         doc_metadata_repo = repositories.DocumentMetadataRepository(
             project_id=project_id,
             doc_name=doc_name,
-            table_of_contents=table_and_contents,
+            table_of_contents=table_of_contents,
             raw_doc_path=doc_url,
         )
         doc_id = doc_metadata_repo.doc_id
@@ -48,6 +48,7 @@ class DocumentProcessingNode(BaseModel):
             docs.append(
                 repositories.DocumentContentRepository(
                     doc_id=doc_id,
+                    heading=heading,
                     text=text,
                 )
             )
