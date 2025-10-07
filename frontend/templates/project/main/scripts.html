@@ -325,6 +325,14 @@ function loadFRAnnotations(analyzeOverride = null) {
         window.history.replaceState({}, document.title, newUrl);
     }
 
+    // Check saved preference if no fresh analysis trigger
+    if (!urlParams.get('fresh_analysis')) {
+        const savedPreference = localStorage.getItem('fr_analyze_preference');
+        if (savedPreference !== null) {
+            analyze = JSON.parse(savedPreference);
+        }
+    }
+
     // Call the backend API endpoint
     const apiUrl = `/project/{{ project.uuid }}/annotate-fr/`;
 

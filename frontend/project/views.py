@@ -1576,7 +1576,7 @@ def get_fr_infors(request, project_uuid):
         # Get parameters from request
         data = json.loads(request.body) if request.body else {}
         lang = data.get('lang', 'vi')
-        analyze = data.get('analyze', True)  # Default to False for cached mode
+        analyze = data.get('analyze', False)  # Default to False for cached mode
 
         # Check if we have cached data in DB when analyze=False
         if not analyze:
