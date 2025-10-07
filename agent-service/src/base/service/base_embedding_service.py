@@ -36,16 +36,7 @@ class BaseEmbeddingService(BaseMultiApiTokens):
 
             self._embeddings.append(GoogleGenerativeAIEmbeddings(**_model_params))
 
-        self._set_embedding_dim()
-        self._reset_round_robin()
         return self
 
-    def get_embedding(self):
+    def get_embedding(self) -> GoogleGenerativeAIEmbeddings:
         return self._embeddings[self._get_next_model_index()]
-
-    def _set_embedding_dim(self):
-        if self.embedding_dim is None:
-            self.embedding_dim = len(
-                self.get_embedding().embed_documents(["get embedding dimension"])[0]
-            )
-            logging.info(f"Embedding dimension: {self.embedding_dim}")

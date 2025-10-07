@@ -1,7 +1,7 @@
 from langchain_core.messages import HumanMessage
 
 from src.graph import nodes
-from src.models.agent.docs_preprocessing_state_model import DocsPreProcessingStateModel
+from src.models import DocsPreProcessingStateModel
 
 
 def test_metadata_removal_vn():

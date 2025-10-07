@@ -4,7 +4,7 @@ from langgraph.graph import END, StateGraph
 from pydantic import BaseModel, Field
 
 from src.graph import nodes
-from src.models.agent.docs_preprocessing_state_model import DocsPreProcessingStateModel
+from src.models import DocsPreProcessingStateModel
 
 
 class DocsPreprocessingWorkflow(BaseModel):
@@ -41,33 +41,25 @@ class DocsPreprocessingWorkflow(BaseModel):
     def _add_nodes(self):
         """Add all nodes to the workflow"""
         # Add basic nodes
-        self.workflow.add_node("entry", nodes.EntryNode())
-
         self.workflow.add_node(
-            "text_normalization",
-            nodes.TextNormalizationNode(),
+            "document_normalization",
+            nodes.DocumentNormalizationNode(),
         )
         self.workflow.add_node(
-            "section_based_chunking",
-            nodes.SectionBasedChunkingNode(),
+            "document_processing",
+            nodes.DocumentProcessingNode(),
         )
         self.workflow.add_node(
             "text_extractor",
             nodes.TextExtractorNode(),
         )
-        self.workflow.add_node(
-            "data_store",
-            nodes.DataStoreNode(),
-        )
 
     def _setup_edges(self):
         """Configure all edges and entry point"""
-        self.workflow.set_entry_point("entry")
-        self.workflow.add_edge("entry", "text_extractor")
-        self.workflow.add_edge("text_extractor", "text_normalization")
-        self.workflow.add_edge("text_normalization", "section_based_chunking")
-        self.workflow.add_edge("section_based_chunking", "data_store")
-        self.workflow.add_edge("data_store", END)
+        self.workflow.set_entry_point("text_extractor")
+        self.workflow.add_edge("text_extractor", "document_normalization")
+        self.workflow.add_edge("document_normalization", "document_processing")
+        self.workflow.add_edge("document_processing", END)
 
     def get_graph(self):
         """Get the compiled graph"""

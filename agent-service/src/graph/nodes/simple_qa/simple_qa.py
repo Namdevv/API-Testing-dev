@@ -5,7 +5,7 @@ from pydantic import validate_call
 
 from src.base.service.base_agent_service import BaseAgentService
 from src.enums.enums import LanguageEnum
-from src.models.agent.docs_preprocessing_state_model import DocsPreProcessingStateModel
+from src.models import DocsPreProcessingStateModel
 
 
 class SimpleQANode(BaseAgentService):

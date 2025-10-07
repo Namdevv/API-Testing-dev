@@ -15,9 +15,9 @@ from pydantic import model_validator, validate_call
 
 from src import cache
 from src.base.service.base_agent_service import BaseAgentService
+from src.common.common import get_percent_space
 from src.enums.enums import LanguageEnum
-from src.models.agent.docs_preprocessing_state_model import DocsPreProcessingStateModel
-from src.utils.common import get_percent_space
+from src.models import DocsPreProcessingStateModel
 
 
 class TextExtractorNode(BaseAgentService):
@@ -93,10 +93,13 @@ class TextExtractorNode(BaseAgentService):
 
     @validate_call
     def __call__(self, state: DocsPreProcessingStateModel):
-        data = state.messages[-1].content.strip()
+        doc_url = state.doc_url
+        if not doc_url.startswith("http"):
+            doc_url = "data/" + doc_url
         lang = state.lang.value
+        doc_name = state.doc_name
 
-        text, doc_name = self.__extract(data)
+        text, doc_name = self.__extract(doc_url)
 
         if get_percent_space(text) >= 35:
             logging.warning(
@@ -104,7 +107,13 @@ class TextExtractorNode(BaseAgentService):
             )
             text = self.__fix_orc_split_text(text, lang)
 
-        return {"messages": [AIMessage(content=text)], "doc_name": doc_name}
+        result = {"messages": [AIMessage(content=text)]}
+
+        # add doc_name if state has no doc_name
+        if doc_name:
+            result["doc_name"] = doc_name
+
+        return result
 
 
 if __name__ == "__main__":
