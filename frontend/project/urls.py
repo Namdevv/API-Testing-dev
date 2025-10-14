@@ -29,7 +29,7 @@ urlpatterns = [
 
     # API Status URLs
     path('api/status/', views.api_status_view, name='api_status'),
-    path('api/health/', views.api_health_check, name='api_health_check'),
+    path('api/common/health', views.api_health_check, name='api_health_check'),
     path('api/server-status/', views.api_server_status, name='api_server_status'),
 
 ]

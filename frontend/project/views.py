@@ -309,8 +309,8 @@ def check_api_server_status():
 
     try:
         # Try to connect to the API server with a simple health check
-        # We'll use the project list endpoint as a health check since it's simple
-        test_url = f"{AGENT_API_BASE_URL}/api/project/test"
+        # Use the health check endpoint for proper status checking
+        test_url = f"{AGENT_API_BASE_URL}/api/common/health"
         headers = {'accept': 'application/json'}
 
         if DEBUG:
@@ -335,14 +335,21 @@ def check_api_server_status():
             print(f"===========================")
 
         if response.status_code == 200:
-            _api_status_cache['status'] = True
-            _api_status_cache['last_checked'] = current_time
-            _api_status_cache['error_message'] = None
-            if DEBUG:
-                print("API server is ONLINE")
-            return True, None
+            try:
+                response_data = response.json()
+                if response_data.get('status') == 'ok':
+                    _api_status_cache['status'] = True
+                    _api_status_cache['last_checked'] = current_time
+                    _api_status_cache['error_message'] = None
+                    if DEBUG:
+                        print("API server is ONLINE")
+                    return True, None
+                else:
+                    error_msg = f"API server health check trả về status không hợp lệ: {response_data.get('status')}"
+            except json.JSONDecodeError:
+                error_msg = "API server health check không trả về JSON hợp lệ"
         else:
-            error_msg = f"API server trả về mã lỗi {response.status_code}"
+            error_msg = f"API server health check trả về mã lỗi {response.status_code}"
             if response.status_code == 404:
                 error_msg += " - Endpoint không tồn tại"
             elif response.status_code >= 500:
@@ -350,12 +357,12 @@ def check_api_server_status():
             elif response.status_code >= 400:
                 error_msg += " - Lỗi yêu cầu từ client"
 
-            _api_status_cache['status'] = False
-            _api_status_cache['last_checked'] = current_time
-            _api_status_cache['error_message'] = error_msg
-            if DEBUG:
-                print(f"API server returned error: {error_msg}")
-            return False, error_msg
+        _api_status_cache['status'] = False
+        _api_status_cache['last_checked'] = current_time
+        _api_status_cache['error_message'] = error_msg
+        if DEBUG:
+            print(f"API server returned error: {error_msg}")
+        return False, error_msg
 
     except requests.exceptions.ConnectionError as e:
         error_msg = "Không thể kết nối đến API server - server có thể chưa được khởi chạy hoặc địa chỉ không đúng"
@@ -589,9 +596,7 @@ def api_status_view(request):
 def api_health_check(request):
     """Simple API endpoint to check if the Django server is running"""
     return JsonResponse({
-        'status': 'healthy',
-        'timestamp': timezone.now().isoformat(),
-        'service': 'Django Frontend API'
+        'status': 'ok'
     })
 
 
