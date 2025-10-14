@@ -46,6 +46,9 @@
 {% block title %}Project Details{% endblock %}
 
 {% block content %}
+<!-- API Status Indicator - Only show on pages that need API server -->
+{% include 'project/api_status_indicator.html' %}
+
 {% include 'project/main/project_header.html' %}
 {% include 'project/main/step_wizard.html' %}
 {% include 'project/main/upload_documents.html' %}

@@ -27,4 +27,9 @@ urlpatterns = [
     path('api/all/', views.api_get_all_projects, name='api_get_all_projects'),
     path('api/delete/<str:project_id>/', views.api_delete_project, name='api_delete_project'),
 
+    # API Status URLs
+    path('api/status/', views.api_status_view, name='api_status'),
+    path('api/health/', views.api_health_check, name='api_health_check'),
+    path('api/server-status/', views.api_server_status, name='api_server_status'),
+
 ]

@@ -271,6 +271,9 @@
 {% endblock %}
 
 {% block content %}
+<!-- API Status Indicator - Only show on pages that need API server -->
+{% include 'project/api_status_indicator.html' %}
+
 <div class="add-project-container">
     <div class="project-form-card">
         <div class="form-header">
