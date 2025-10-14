@@ -5,7 +5,10 @@
 {% load static %}
 
 {% block content %}
- <h1>Project List</h1>
+  <!-- API Status Indicator - Only show on pages that need API server -->
+  {% include 'project/api_status_indicator.html' %}
+
+  <h1>Project List</h1>
 
  <!-- API Info -->
  <div class="mb-3">

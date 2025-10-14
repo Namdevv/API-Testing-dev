@@ -1,0 +1,478 @@
+<!-- API Status Indicator Component -->
+<div class="api-status-indicator" id="apiStatusIndicator" onclick="showApiStatusModal()" title="Click để xem chi tiết trạng thái API">
+    <div class="d-flex align-items-center">
+        <div class="api-status-dot me-2" id="apiStatusDot"></div>
+        <div class="api-status-text">
+            <small class="d-block" id="apiStatusText">API Server</small>
+        </div>
+        <div class="dropdown ms-2">
+            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" onclick="event.stopPropagation();">
+                <i class="bi bi-gear"></i>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+                <li><a class="dropdown-item" href="#" onclick="refreshApiStatus(); event.stopPropagation();">
+                    <i class="bi bi-arrow-clockwise me-2"></i>Refresh Status
+                </a></li>
+                <li><a class="dropdown-item" href="{% url 'api_status' %}" target="_blank">
+                    <i class="bi bi-eye me-2"></i>View Details
+                </a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="#" onclick="testApiConnection(); event.stopPropagation();">
+                    <i class="bi bi-plug me-2"></i>Test Connection
+                </a></li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- API Status Modal -->
+<div class="modal fade" id="apiStatusModal" tabindex="-1" aria-labelledby="apiStatusModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="apiStatusModalLabel">
+                    <i class="bi bi-exclamation-triangle-fill text-warning me-2"></i>
+                    API Server Không khả dụng
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-danger">
+                    <div class="d-flex align-items-center">
+                        <div class="alert-icon">
+                            <i class="bi bi-exclamation-triangle-fill fs-1"></i>
+                        </div>
+                        <div class="ms-3">
+                            <h6 class="alert-heading">Không thể kết nối đến API Server</h6>
+                            <p class="mb-2" id="apiModalErrorMessage">API server hiện đang offline hoặc không phản hồi.</p>
+                            <hr>
+                            <p class="mb-0">
+                                <strong>Các chức năng bị ảnh hưởng:</strong>
+                            </p>
+                            <ul class="mb-0 mt-2">
+                                <li>Xử lý tài liệu AI</li>
+                                <li>Tạo test case tự động</li>
+                                <li>Phân tích functional requirements</li>
+                                <li>Tất cả các tác vụ yêu cầu API server</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="alert alert-info">
+                    <h6><i class="bi bi-lightbulb me-2"></i>Khuyến nghị:</h6>
+                    <ul class="mb-0">
+                        <li>Kiểm tra xem API server đã được khởi chạy chưa</li>
+                        <li>Kiểm tra kết nối mạng và firewall</li>
+                        <li>Liên hệ administrator nếu vấn đề vẫn tiếp diễn</li>
+                        <li>Thử lại sau vài phút</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                <button type="button" class="btn btn-primary" onclick="refreshApiStatus()">
+                    <i class="bi bi-arrow-clockwise me-1"></i>Kiểm tra lại
+                </button>
+                <a href="{% url 'api_status' %}" class="btn btn-outline-primary" target="_blank">
+                    <i class="bi bi-eye me-1"></i>Xem chi tiết
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.api-status-indicator {
+    position: fixed;
+    top: 80px;
+    right: 20px;
+    z-index: 1050;
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 8px 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.api-status-indicator:hover {
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    transform: translateY(-1px);
+}
+
+.api-status-indicator.offline {
+    border-color: #dc3545;
+    animation: pulse-error 2s infinite;
+}
+
+.api-status-indicator.online {
+    border-color: #198754;
+}
+
+.api-status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: #ffc107;
+    animation: pulse 2s infinite;
+}
+
+.api-status-dot.online {
+    background-color: #198754;
+    animation: none;
+}
+
+.api-status-dot.offline {
+    background-color: #dc3545;
+    animation: none;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+@keyframes pulse-error {
+    0% {
+        opacity: 1;
+        transform: scale(1);
+        box-shadow: 0 2px 10px rgba(220, 53, 69, 0.3);
+    }
+    50% {
+        opacity: 0.8;
+        transform: scale(1.02);
+        box-shadow: 0 4px 20px rgba(220, 53, 69, 0.4);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+        box-shadow: 0 2px 10px rgba(220, 53, 69, 0.3);
+    }
+}
+</style>
+
+<script>
+let apiStatusInterval;
+
+function updateApiStatusIndicator(status, errorMessage = null) {
+    const statusIndicator = document.getElementById('apiStatusIndicator');
+    const statusDot = document.getElementById('apiStatusDot');
+    const statusText = document.getElementById('apiStatusText');
+
+    if (status) {
+        statusDot.className = 'api-status-dot online';
+        statusText.textContent = 'API Server: Online';
+        statusText.style.color = '#198754';
+        statusIndicator.className = 'api-status-indicator online';
+    } else {
+        statusDot.className = 'api-status-dot offline';
+        statusText.textContent = 'API Server: Offline';
+        statusText.style.color = '#dc3545';
+        statusIndicator.className = 'api-status-indicator offline';
+
+        // Show error message if provided
+        if (errorMessage) {
+            statusText.textContent = `API Server: ${errorMessage}`;
+        }
+    }
+}
+
+function refreshApiStatus() {
+    fetch('{% url "api_server_status" %}')
+        .then(response => response.json())
+        .then(data => {
+            updateApiStatusIndicator(data.status, data.error_message);
+        })
+        .catch(error => {
+            console.error('Error refreshing API status:', error);
+            updateApiStatusIndicator(false, 'Connection Error');
+        });
+}
+
+function testApiConnection() {
+    fetch('{% url "api_get_all_projects" %}')
+        .then(response => {
+            if (response.ok) {
+                return response.json();
+            } else {
+                throw new Error(`HTTP ${response.status}`);
+            }
+        })
+        .then(data => {
+            showToast('success', 'Connection Test', 'API server is responding correctly');
+        })
+        .catch(error => {
+            console.error('API connection test failed:', error);
+            showToast('danger', 'Connection Test Failed', 'Cannot connect to API server');
+        });
+}
+
+function showToast(type, title, message) {
+    const toastHtml = `
+        <div class="toast align-items-center text-white bg-${type}" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="d-flex">
+                <div class="toast-body">
+                    <strong>${title}</strong> ${message}
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        </div>
+    `;
+
+    // Create toast container if it doesn't exist
+    let toastContainer = document.querySelector('.toast-container');
+    if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
+        toastContainer.style.zIndex = '1060';
+        document.body.appendChild(toastContainer);
+    }
+
+    toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+
+    const toastElement = toastContainer.lastElementChild;
+    const toast = new bootstrap.Toast(toastElement);
+    toast.show();
+
+    // Remove toast after it's hidden
+    toastElement.addEventListener('hidden.bs.toast', function() {
+        toastElement.remove();
+    });
+}
+
+// Global variable to track if modal has been shown recently
+let modalShownRecently = false;
+let lastModalShowTime = 0;
+
+// API Operation wrapper functions for critical operations
+window.apiOperations = {
+    // Check API status before AI processing
+    beforeAiProcessing: async function() {
+        const isAvailable = await window.apiUtils.checkBeforeOperation('xử lý AI');
+        if (isAvailable) {
+            // Show loading indicator
+            if (window.__loadingOverlay) {
+                window.__loadingOverlay.show();
+            }
+        }
+        return isAvailable;
+    },
+
+    // Check API status before document upload
+    beforeDocumentUpload: async function() {
+        return await window.apiUtils.checkBeforeOperation('tải lên tài liệu');
+    },
+
+    // Check API status before test generation
+    beforeTestGeneration: async function() {
+        return await window.apiUtils.checkBeforeOperation('tạo test case');
+    },
+
+    // Check API status before FR analysis
+    beforeFrAnalysis: async function() {
+        return await window.apiUtils.checkBeforeOperation('phân tích functional requirements');
+    },
+
+    // Generic operation wrapper
+    beforeOperation: async function(operationType) {
+        const operationName = window.apiUtils.getOperationDisplayName(operationType);
+        return await window.apiUtils.checkBeforeOperation(operationName);
+    }
+};
+
+// Initialize API status indicator
+document.addEventListener('DOMContentLoaded', function() {
+    // Show cached status immediately if available
+    showCachedStatus();
+
+    // Set up periodic status checking (every 30 seconds) - only if no recent cache
+    if (window.apiServerOnline === undefined) {
+        refreshApiStatus(); // Initial check if no cache
+    }
+
+    apiStatusInterval = setInterval(function() {
+        // Always refresh every 30 seconds regardless of cache
+        refreshApiStatus();
+    }, 30000);
+
+    // Refresh status when page becomes visible
+    document.addEventListener('visibilitychange', function() {
+        if (!document.hidden) {
+            refreshApiStatus();
+        }
+    });
+});
+
+// Clean up interval when page unloads
+window.addEventListener('beforeunload', function() {
+    if (apiStatusInterval) {
+        clearInterval(apiStatusInterval);
+    }
+});
+
+// Enhanced API status checking with modal notifications
+function checkApiStatusAndNotify() {
+    return fetch('{% url "api_server_status" %}')
+        .then(response => response.json())
+        .then(data => {
+            const isOnline = data.status;
+            const errorMessage = data.error_message;
+
+            updateApiStatusIndicator(isOnline, errorMessage);
+
+            // Show modal if API is offline and hasn't been shown recently (within last 5 minutes)
+            if (!isOnline && shouldShowModal()) {
+                showApiStatusModal(errorMessage);
+            }
+
+            return { isOnline, errorMessage };
+        })
+        .catch(error => {
+            console.error('Error checking API status:', error);
+            updateApiStatusIndicator(false, 'Connection Error');
+
+            if (shouldShowModal()) {
+                showApiStatusModal('Không thể kiểm tra trạng thái API server');
+            }
+
+            return { isOnline: false, errorMessage: 'Connection Error' };
+        });
+}
+
+function shouldShowModal() {
+    const now = Date.now();
+    const fiveMinutes = 5 * 60 * 1000; // 5 minutes in milliseconds
+
+    // Don't show modal if shown within last 5 minutes
+    if (modalShownRecently && (now - lastModalShowTime) < fiveMinutes) {
+        return false;
+    }
+
+    return true;
+}
+
+function showApiStatusModal(errorMessage = null) {
+    const modal = document.getElementById('apiStatusModal');
+    const errorMessageElement = document.getElementById('apiModalErrorMessage');
+
+    if (errorMessage && errorMessageElement) {
+        errorMessageElement.textContent = errorMessage;
+    }
+
+    if (modal) {
+        const bsModal = new bootstrap.Modal(modal);
+        bsModal.show();
+        modalShownRecently = true;
+        lastModalShowTime = Date.now();
+    }
+}
+
+// Enhanced refresh function
+function refreshApiStatus() {
+    // Only show "checking" if we're actually making a new request
+    // If we have cached status, don't show "checking" text
+    const hasRecentCache = window.apiServerOnline !== undefined;
+    if (!hasRecentCache) {
+        const statusText = document.getElementById('apiStatusText');
+        if (statusText) {
+            statusText.textContent = 'Đang kiểm tra...';
+        }
+    }
+
+    return checkApiStatusAndNotify();
+}
+
+// Show cached status immediately if available
+function showCachedStatus() {
+    const statusText = document.getElementById('apiStatusText');
+    const statusDot = document.getElementById('apiStatusDot');
+    const statusIndicator = document.getElementById('apiStatusIndicator');
+
+    if (window.apiServerOnline === true) {
+        if (statusText) statusText.textContent = 'API Server: Online';
+        if (statusDot) statusDot.className = 'api-status-dot online';
+        if (statusIndicator) statusIndicator.className = 'api-status-indicator online';
+    } else if (window.apiServerOnline === false) {
+        if (statusText) statusText.textContent = 'API Server: Offline';
+        if (statusDot) statusDot.className = 'api-status-dot offline';
+        if (statusIndicator) statusIndicator.className = 'api-status-indicator offline';
+    }
+    // If undefined, keep default text and show checking state
+}
+
+// Override the original updateApiStatusIndicator to use the new system
+const originalUpdateApiStatusIndicator = updateApiStatusIndicator;
+updateApiStatusIndicator = function(status, errorMessage = null) {
+    originalUpdateApiStatusIndicator(status, errorMessage);
+
+    // Also update global API status for other components to use
+    window.apiServerOnline = status;
+
+    // Update indicator visual state
+    const statusIndicator = document.getElementById('apiStatusIndicator');
+    if (statusIndicator) {
+        statusIndicator.className = `api-status-indicator ${status ? 'online' : 'offline'}`;
+    }
+};
+
+// Global API utility functions for checking status before operations
+window.apiUtils = {
+    // Check if API is available before performing operations
+    checkBeforeOperation: async function(operationName = 'operation') {
+        try {
+            const response = await fetch('{% url "api_server_status" %}');
+            const data = await response.json();
+
+            if (!data.status) {
+                // Show modal notification
+                showApiStatusModal(data.error_message);
+
+                // Show toast notification
+                showToast('error', 'API Server Offline',
+                    `Không thể thực hiện ${operationName} vì API server hiện không khả dụng.`);
+
+                return false;
+            }
+
+            return true;
+        } catch (error) {
+            console.error('Error checking API status:', error);
+            showToast('error', 'Connection Error',
+                'Không thể kiểm tra trạng thái API server.');
+
+            return false;
+        }
+    },
+
+    // Wrapper for API calls with automatic status checking
+    callWithStatusCheck: async function(apiCallFunction, operationName = 'API call') {
+        const isAvailable = await this.checkBeforeOperation(operationName);
+        if (!isAvailable) {
+            throw new Error(`API server không khả dụng cho ${operationName}`);
+        }
+
+        try {
+            return await apiCallFunction();
+        } catch (error) {
+            console.error(`Error in ${operationName}:`, error);
+            throw error;
+        }
+    },
+
+    // Show user-friendly messages for common API operations
+    getOperationDisplayName: function(operationType) {
+        const operationNames = {
+            'ai_processing': 'xử lý AI',
+            'document_upload': 'tải lên tài liệu',
+            'project_create': 'tạo dự án',
+            'test_generation': 'tạo test case',
+            'fr_analysis': 'phân tích functional requirements'
+        };
+
+        return operationNames[operationType] || 'thao tác';
+    }
+};
+</script>

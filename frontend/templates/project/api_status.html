@@ -1,0 +1,351 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="card-title">
+                        <i class="bi bi-server me-2"></i>API Server Status
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div id="apiStatusContainer">
+                                {% if api_status %}
+                                    <div class="alert alert-success border-0">
+                                        <div class="d-flex align-items-center">
+                                            <div class="alert-icon">
+                                                <i class="bi bi-check-circle-fill fs-1"></i>
+                                            </div>
+                                            <div class="ms-3">
+                                                <h5 class="alert-heading">API Server Online</h5>
+                                                <p class="mb-0">API server đang hoạt động bình thường và sẵn sàng xử lý các yêu cầu.</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% else %}
+                                    <div class="alert alert-danger border-0">
+                                        <div class="d-flex align-items-center">
+                                            <div class="alert-icon">
+                                                <i class="bi bi-exclamation-triangle-fill fs-1"></i>
+                                            </div>
+                                            <div class="ms-3">
+                                                <h5 class="alert-heading">API Server Offline</h5>
+                                                <p class="mb-2">{{ error_message }}</p>
+                                                <hr>
+                                                <p class="mb-0">
+                                                    <strong>Khuyến nghị:</strong>
+                                                    <ul class="mb-0 mt-2">
+                                                        <li>Kiểm tra xem API server đã được khởi chạy chưa</li>
+                                                        <li>Kiểm tra kết nối mạng</li>
+                                                        <li>Liên hệ administrator nếu vấn đề vẫn tiếp diễn</li>
+                                                    </ul>
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <div class="mt-4">
+                                <h6>Thông tin chi tiết:</h6>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="card bg-light">
+                                            <div class="card-body">
+                                                <h6 class="card-title">
+                                                    <i class="bi bi-info-circle me-2"></i>Server Information
+                                                </h6>
+                                                <p class="mb-1"><strong>API Base URL:</strong></p>
+                                                <code class="d-block mb-2">{{ AGENT_API_BASE_URL }}</code>
+                                                <p class="mb-1"><strong>Status Check Timeout:</strong> {{ cache_timeout }} seconds (5s connection)</p>
+                                                {% if last_checked %}
+                                                    <p class="mb-0"><strong>Last Checked:</strong>
+                                                        <span id="lastCheckedTime">{{ last_checked|date:"Y-m-d H:i:s" }}</span>
+                                                    </p>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="card bg-light">
+                                            <div class="card-body">
+                                                <h6 class="card-title">
+                                                    <i class="bi bi-gear me-2"></i>Actions
+                                                </h6>
+                                                <button class="btn btn-primary me-2" onclick="refreshStatus()">
+                                                    <i class="bi bi-arrow-clockwise me-1"></i>Refresh Status
+                                                </button>
+                                                <button class="btn btn-outline-secondary" onclick="testApiConnection()">
+                                                    <i class="bi bi-plug me-1"></i>Test Connection
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="card-title mb-0">
+                                        <i class="bi bi-activity me-2"></i>System Status
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <span>Django Frontend:</span>
+                                        <span class="badge bg-success">
+                                            <i class="bi bi-check-circle me-1"></i>Online
+                                        </span>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <span>API Server:</span>
+                                        <span class="badge {% if api_status %}bg-success{% else %}bg-danger{% endif %}">
+                                            <i class="bi bi-{% if api_status %}check-circle{% else %}x-circle{% endif %} me-1"></i>
+                                            {% if api_status %}Online{% else %}Offline{% endif %}
+                                        </span>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span>Database:</span>
+                                        <span class="badge bg-success">
+                                            <i class="bi bi-check-circle me-1"></i>Connected
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="card mt-3">
+                                <div class="card-header">
+                                    <h6 class="card-title mb-0">
+                                        <i class="bi bi-lightbulb me-2"></i>Troubleshooting
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    {% if not api_status %}
+                                        <div class="alert alert-warning py-2">
+                                            <small>
+                                                <strong>API server không khả dụng?</strong><br>
+                                                Hãy kiểm tra:
+                                                <ul class="mb-0 mt-1 small">
+                                                    <li>Container API server có đang chạy</li>
+                                                    <li>Port và network configuration</li>
+                                                    <li>Service dependencies</li>
+                                                </ul>
+                                            </small>
+                                        </div>
+                                    {% else %}
+                                        <div class="alert alert-success py-2">
+                                            <small>
+                                                <i class="bi bi-check-circle me-1"></i>
+                                                Tất cả hệ thống đang hoạt động bình thường.
+                                            </small>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let statusCheckInterval;
+
+function refreshStatus() {
+    const btn = event.target;
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Checking...';
+    btn.disabled = true;
+
+    fetch('{% url "api_server_status" %}', {
+        method: 'GET',
+        headers: {
+            'Accept': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        updateStatusDisplay(data);
+        updateLastCheckedTime();
+    })
+    .catch(error => {
+        console.error('Error refreshing status:', error);
+        showAlert('danger', 'Error', 'Không thể kiểm tra trạng thái API server.');
+    })
+    .finally(() => {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    });
+}
+
+function testApiConnection() {
+    const btn = event.target;
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Testing...';
+    btn.disabled = true;
+
+    // Test a simple API call
+    fetch('{% url "api_get_all_projects" %}', {
+        method: 'GET',
+        headers: {
+            'Accept': 'application/json'
+        }
+    })
+    .then(response => {
+        if (response.ok) {
+            return response.json();
+        } else {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+    })
+    .then(data => {
+        showAlert('success', 'Connection Test', `Kết nối API thành công! Nhận được ${data.count || 0} projects.`);
+    })
+    .catch(error => {
+        console.error('API connection test failed:', error);
+        showAlert('danger', 'Connection Test Failed', `Không thể kết nối đến API server: ${error.message}`);
+    })
+    .finally(() => {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    });
+}
+
+function updateStatusDisplay(data) {
+    const container = document.getElementById('apiStatusContainer');
+
+    if (data.status) {
+        container.innerHTML = `
+            <div class="alert alert-success border-0">
+                <div class="d-flex align-items-center">
+                    <div class="alert-icon">
+                        <i class="bi bi-check-circle-fill fs-1"></i>
+                    </div>
+                    <div class="ms-3">
+                        <h5 class="alert-heading">API Server Online</h5>
+                        <p class="mb-0">API server đang hoạt động bình thường và sẵn sàng xử lý các yêu cầu.</p>
+                    </div>
+                </div>
+            </div>
+        `;
+    } else {
+        container.innerHTML = `
+            <div class="alert alert-danger border-0">
+                <div class="d-flex align-items-center">
+                    <div class="alert-icon">
+                        <i class="bi bi-exclamation-triangle-fill fs-1"></i>
+                    </div>
+                    <div class="ms-3">
+                        <h5 class="alert-heading">API Server Offline</h5>
+                        <p class="mb-2">${data.error_message || 'Không thể kết nối đến API server'}</p>
+                        <hr>
+                        <p class="mb-0">
+                            <strong>Khuyến nghị:</strong>
+                            <ul class="mb-0 mt-2">
+                                <li>Kiểm tra xem API server đã được khởi chạy chưa</li>
+                                <li>Kiểm tra kết nối mạng</li>
+                                <li>Liên hệ administrator nếu vấn đề vẫn tiếp diễn</li>
+                            </ul>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+}
+
+function updateLastCheckedTime() {
+    const now = new Date();
+    const timeStr = now.toLocaleString('vi-VN');
+    const timeElement = document.getElementById('lastCheckedTime');
+    if (timeElement) {
+        timeElement.textContent = timeStr;
+    }
+}
+
+function showAlert(type, title, message) {
+    const alertClass = `alert-${type}`;
+    const icon = type === 'success' ? 'check-circle' : 'exclamation-triangle';
+
+    const alertHtml = `
+        <div class="alert ${alertClass} alert-dismissible fade show" role="alert">
+            <i class="bi bi-${icon} me-2"></i>
+            <strong>${title}</strong> ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    `;
+
+    // Remove existing alerts
+    const existingAlerts = document.querySelectorAll('.alert');
+    existingAlerts.forEach(alert => {
+        if (!alert.querySelector('.alert-icon')) { // Don't remove the main status alert
+            alert.remove();
+        }
+    });
+
+    // Add new alert
+    const container = document.querySelector('.card-body');
+    container.insertAdjacentHTML('afterbegin', alertHtml);
+
+    // Auto dismiss after 5 seconds
+    setTimeout(() => {
+        const alert = container.querySelector('.alert');
+        if (alert && !alert.querySelector('.alert-icon')) {
+            alert.remove();
+        }
+    }, 5000);
+}
+
+// Auto refresh status every 30 seconds
+document.addEventListener('DOMContentLoaded', function() {
+    statusCheckInterval = setInterval(() => {
+        // Only refresh if the page is visible
+        if (!document.hidden) {
+            fetch('{% url "api_server_status" %}')
+                .then(response => response.json())
+                .then(data => {
+                    updateStatusDisplay(data);
+                    updateLastCheckedTime();
+                })
+                .catch(error => {
+                    console.error('Auto-refresh error:', error);
+                });
+        }
+    }, 30000); // 30 seconds
+
+    // Update timestamp on page load
+    updateLastCheckedTime();
+});
+
+// Stop auto refresh when page is not visible to save resources
+document.addEventListener('visibilitychange', function() {
+    if (document.hidden) {
+        clearInterval(statusCheckInterval);
+    } else {
+        // Restart auto refresh when page becomes visible again
+        statusCheckInterval = setInterval(() => {
+            fetch('{% url "api_server_status" %}')
+                .then(response => response.json())
+                .then(data => {
+                    updateStatusDisplay(data);
+                    updateLastCheckedTime();
+                })
+                .catch(error => {
+                    console.error('Auto-refresh error:', error);
+                });
+        }, 30000);
+    }
+});
+</script>
+{% endblock %}

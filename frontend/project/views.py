@@ -56,6 +56,18 @@ PREPROCESSED_DOCUMENTS_DELETE_ENDPOINT = f"{AGENT_API_BASE_URL}/api/document/del
 PROJECT_CREATE_ENDPOINT = f"{AGENT_API_BASE_URL}/api/project/create"
 PROJECT_ALL_ENDPOINT = f"{AGENT_API_BASE_URL}/api/project/all"
 
+# API Status Configuration
+API_STATUS_CACHE_TIMEOUT = 60  # seconds - Cache for 30 seconds as requested
+API_CONNECTION_TIMEOUT = 5     # seconds - Reduced for faster response
+API_REQUEST_TIMEOUT = 60       # seconds
+
+# Global variable to cache API status
+_api_status_cache = {
+    'status': None,
+    'last_checked': None,
+    'error_message': None
+}
+
 def get_minio_client():
     """Create MinIO client"""
     return Minio(
@@ -279,8 +291,177 @@ def download_and_upload_from_url(url, user, project):
         }
 
 
+def check_api_server_status():
+    """
+    Check if the API server is running and responsive.
+    Returns cached result if within timeout period.
+    Enhanced with better error messages and logging.
+    """
+    import time
+
+    current_time = time.time()
+
+    # Return cached result if still valid
+    if (_api_status_cache['status'] is not None and
+        _api_status_cache['last_checked'] is not None and
+        current_time - _api_status_cache['last_checked'] < API_STATUS_CACHE_TIMEOUT):
+        return _api_status_cache['status'], _api_status_cache['error_message']
+
+    try:
+        # Try to connect to the API server with a simple health check
+        # Use the health check endpoint for proper status checking
+        test_url = f"{AGENT_API_BASE_URL}/api/common/health"
+        headers = {'accept': 'application/json'}
+
+        if DEBUG:
+            print(f"=== API STATUS CHECK DEBUG ===")
+            print(f"Checking API server at: {test_url}")
+            print(f"Timeout: {API_CONNECTION_TIMEOUT}s")
+            print(f"==============================")
+
+        response = requests.get(
+            test_url,
+            headers=headers,
+            timeout=API_CONNECTION_TIMEOUT,
+            verify=False
+        )
+
+        if DEBUG:
+            print(f"=== API STATUS RESPONSE ===")
+            print(f"Status Code: {response.status_code}")
+            print(f"Response Headers: {dict(response.headers)}")
+            if response.text:
+                print(f"Response Text: {response.text}")
+            print(f"===========================")
+
+        if response.status_code == 200:
+            try:
+                response_data = response.json()
+                if response_data.get('status') == 'ok':
+                    _api_status_cache['status'] = True
+                    _api_status_cache['last_checked'] = current_time
+                    _api_status_cache['error_message'] = None
+                    if DEBUG:
+                        print("API server is ONLINE")
+                    return True, None
+                else:
+                    error_msg = f"API server health check trả về status không hợp lệ: {response_data.get('status')}"
+            except json.JSONDecodeError:
+                error_msg = "API server health check không trả về JSON hợp lệ"
+        else:
+            error_msg = f"API server health check trả về mã lỗi {response.status_code}"
+            if response.status_code == 404:
+                error_msg += " - Endpoint không tồn tại"
+            elif response.status_code >= 500:
+                error_msg += " - Lỗi server nội bộ"
+            elif response.status_code >= 400:
+                error_msg += " - Lỗi yêu cầu từ client"
+
+        _api_status_cache['status'] = False
+        _api_status_cache['last_checked'] = current_time
+        _api_status_cache['error_message'] = error_msg
+        if DEBUG:
+            print(f"API server returned error: {error_msg}")
+        return False, error_msg
+
+    except requests.exceptions.ConnectionError as e:
+        error_msg = "Không thể kết nối đến API server - server có thể chưa được khởi chạy hoặc địa chỉ không đúng"
+        if DEBUG:
+            print(f"=== CONNECTION ERROR ===")
+            print(f"Error: {str(e)}")
+            print(f"API Base URL: {AGENT_API_BASE_URL}")
+            print(f"=========================")
+        _api_status_cache['status'] = False
+        _api_status_cache['last_checked'] = current_time
+        _api_status_cache['error_message'] = error_msg
+        return False, error_msg
+
+    except requests.exceptions.Timeout as e:
+        error_msg = "API server không phản hồi - server có thể quá tải hoặc chưa khởi chạy"
+        if DEBUG:
+            print(f"=== TIMEOUT ERROR ===")
+            print(f"Error: {str(e)}")
+            print(f"Timeout after: {API_CONNECTION_TIMEOUT}s")
+            print(f"=====================")
+        _api_status_cache['status'] = False
+        _api_status_cache['last_checked'] = current_time
+        _api_status_cache['error_message'] = error_msg
+        return False, error_msg
+
+    except Exception as e:
+        error_msg = f"Lỗi không xác định khi kiểm tra API server: {str(e)}"
+        if DEBUG:
+            print(f"=== UNEXPECTED ERROR ===")
+            print(f"Error: {str(e)}")
+            print(f"Error type: {type(e)}")
+            print(f"=========================")
+        _api_status_cache['status'] = False
+        _api_status_cache['last_checked'] = current_time
+        _api_status_cache['error_message'] = error_msg
+        return False, error_msg
+
+
+def call_api_with_retry(url, method='GET', headers=None, json_data=None, max_retries=2, retry_delay=1):
+    """
+    Call API with retry mechanism and proper error handling.
+    Returns (success, response_data, error_message)
+    """
+    import time
+
+    last_exception = None
+
+    for attempt in range(max_retries + 1):
+        try:
+            if DEBUG and attempt > 0:
+                print(f"API call attempt {attempt + 1}/{max_retries + 1} for {url}")
+
+            if method.upper() == 'GET':
+                response = requests.get(url, headers=headers, timeout=API_REQUEST_TIMEOUT, verify=False)
+            elif method.upper() == 'POST':
+                response = requests.post(url, headers=headers, json=json_data, timeout=API_REQUEST_TIMEOUT, verify=False)
+            else:
+                return False, None, f"Unsupported HTTP method: {method}"
+
+            if response.status_code == 200:
+                return True, response.json(), None
+            else:
+                return False, None, f"API call failed with status {response.status_code}: {response.text}"
+
+        except requests.exceptions.ConnectionError as e:
+            last_exception = e
+            if attempt < max_retries:
+                if DEBUG:
+                    print(f"Connection error on attempt {attempt + 1}, retrying in {retry_delay}s...")
+                time.sleep(retry_delay)
+                continue
+            return False, None, "Không thể kết nối đến API server - server có thể chưa được khởi chạy"
+
+        except requests.exceptions.Timeout as e:
+            last_exception = e
+            if attempt < max_retries:
+                if DEBUG:
+                    print(f"Timeout error on attempt {attempt + 1}, retrying in {retry_delay}s...")
+                time.sleep(retry_delay)
+                continue
+            return False, None, "API server không phản hồi - server có thể quá tải hoặc chưa khởi chạy"
+
+        except Exception as e:
+            return False, None, f"Lỗi không xác định: {str(e)}"
+
+    # If we get here, all retries failed
+    return False, None, f"API call failed after {max_retries + 1} attempts: {str(last_exception)}"
+
+
 def call_docs_preprocessing(doc_url, project_id):
-    """Gọi API docs preprocessing với format mới"""
+    """Gọi API docs preprocessing với format mới và error handling cải tiến"""
+    # Check API server status first
+    api_status, error_message = check_api_server_status()
+    if not api_status:
+        user_friendly_error = "Không thể xử lý tài liệu vì API server hiện không khả dụng. Vui lòng kiểm tra trạng thái server và thử lại sau."
+        if DEBUG:
+            user_friendly_error += f" (Chi tiết: {error_message})"
+        raise Exception(user_friendly_error)
+
     try:
         payload = {
             "doc_url": doc_url,
@@ -293,37 +474,29 @@ def call_docs_preprocessing(doc_url, project_id):
             'accept': 'application/json'
         }
 
-        response = requests.post(
-            DOCS_PREPROCESSING_ENDPOINT,
-            json=payload,
+        # Use retry mechanism for API calls
+        success, response_data, error_msg = call_api_with_retry(
+            url=DOCS_PREPROCESSING_ENDPOINT,
+            method='POST',
             headers=headers,
-            timeout=300,
-            verify=False
+            json_data=payload,
+            max_retries=2,
+            retry_delay=2
         )
 
-        if response.status_code == 200:
-            return response.json()
+        if success:
+            return response_data
         else:
-            raise Exception(f"API call failed with status {response.status_code}: {response.text}")
+            raise Exception(error_msg)
 
-    except requests.exceptions.Timeout:
-        if DEBUG:
-            print(f"=== TIMEOUT ERROR ===")
-            print(f"Request timed out after 300 seconds")
-            print(f"=====================")
-        raise Exception("API request timeout - document processing may take longer than expected")
-    except requests.exceptions.RequestException as e:
-        if DEBUG:
-            print(f"=== REQUEST ERROR ===")
-            print(f"Request Exception: {str(e)}")
-            print(f"====================")
-        raise Exception(f"API request failed: {str(e)}")
     except Exception as e:
         if DEBUG:
-            print(f"=== UNEXPECTED ERROR ===")
+            print(f"=== DOCS PREPROCESSING ERROR ===")
             print(f"Error: {str(e)}")
-            print(f"========================")
-        raise Exception(f"Unexpected error: {str(e)}")
+            print(f"Doc URL: {doc_url}")
+            print(f"Project ID: {project_id}")
+            print(f"===============================")
+        raise Exception(f"Lỗi xử lý document: {str(e)}")
 
 
 def call_docs_preprocessing_file(file, project_id):
@@ -405,10 +578,67 @@ def my_view(request):
 
 
 @login_required
+def api_status_view(request):
+    """View to check and display API server status"""
+    api_status, error_message = check_api_server_status()
+
+    context = {
+        'api_status': api_status,
+        'error_message': error_message,
+        'last_checked': _api_status_cache['last_checked'],
+        'cache_timeout': API_STATUS_CACHE_TIMEOUT
+    }
+
+    return render(request, 'project/api_status.html', context)
+
+
+@require_http_methods(["GET"])
+def api_health_check(request):
+    """Simple API endpoint to check if the Django server is running"""
+    return JsonResponse({
+        'status': 'ok'
+    })
+
+
+@require_http_methods(["GET"])
+def api_server_status(request):
+    """API endpoint to check external API server status"""
+    api_status, error_message = check_api_server_status()
+
+    status_code = 200 if api_status else 503  # 503 Service Unavailable if API server is down
+
+    return JsonResponse({
+        'api_server_status': 'online' if api_status else 'offline',
+        'status': api_status,
+        'error_message': error_message,
+        'last_checked': _api_status_cache['last_checked'],
+        'cache_timeout': API_STATUS_CACHE_TIMEOUT,
+        'timestamp': timezone.now().isoformat()
+    }, status=status_code)
+
+
+@login_required
 def project_list(request):
-    # This view will render the list of projects from external API
+    # This view will render the list of projects from external API with improved error handling
     try:
-        import requests
+        # Check API server status first
+        api_status, error_message = check_api_server_status()
+        if not api_status:
+            user_friendly_message = "Không thể kết nối đến API server để tải danh sách dự án. Vui lòng kiểm tra trạng thái server hoặc liên hệ administrator."
+            messages.error(request, user_friendly_message)
+
+            if DEBUG:
+                messages.info(request, f"Chi tiết lỗi: {error_message}")
+
+            context = {
+                'projects': [],
+                'api_count': 0,
+                'api_server_offline': True,
+                'error_message': error_message,
+                'user_message': user_friendly_message
+            }
+            return render(request, 'project/project_list.html', context)
+
         headers = {
             'accept': 'application/json'
         }
@@ -419,101 +649,108 @@ def project_list(request):
         if DEBUG:
             print(f"Fetching projects for user ID: {request.user.id} from {user_projects_endpoint}")
 
-        response = requests.get(
-            user_projects_endpoint,
+        # Use retry mechanism for API calls
+        success, api_projects, error_msg = call_api_with_retry(
+            url=user_projects_endpoint,
+            method='GET',
             headers=headers,
-            timeout=30,
-            verify=False
+            max_retries=2,
+            retry_delay=1
         )
 
-        if DEBUG:
-            print(f"Response Status Code: {response.status_code}")
-
-        if response.status_code == 200:
-            api_projects = response.json()
-            if DEBUG:
-                print(f"API Projects Response: {api_projects}")
-
-            # Sync API projects to local database for sidebar
-            for project_data in api_projects:
-                project_id = project_data.get('project_id')
-                project_name = project_data.get('project_name', '')
-                description = project_data.get('description', '')
-
-                if DEBUG:
-                    print(f"Processing project: {project_name}")
-                    print(f"Raw project_id from API: {project_id} (type: {type(project_id)})")
-
-                if project_id and project_name:
-                    # Ensure project_id is a string
-                    if isinstance(project_id, str):
-                        # Validate UUID format
-                        import uuid
-                        try:
-                            uuid.UUID(project_id)  # This will raise ValueError if invalid
-                            if DEBUG:
-                                print(f"Valid UUID string: {project_id}")
-                        except ValueError:
-                            if DEBUG:
-                                print(f"Invalid UUID format: {project_id}")
-                            continue
-                    else:
-                        if DEBUG:
-                            print(f"Project_id is not a string: {project_id}")
-                        continue
-
-                    # First try to find existing project by user and project_name
-                    existing_project = UserProject.objects.filter(
-                        user=request.user,
-                        project_name=project_name
-                    ).first()
-
-                    if existing_project:
-                        # Update existing project
-                        if DEBUG:
-                            print(f"Updating existing project {project_name} with UUID: {project_id}")
-                        existing_project.uuid = project_id  # Update UUID if different
-                        existing_project.description = description
-                        existing_project.save()
-                        if DEBUG:
-                            print(f"After save, project.uuid: {existing_project.uuid}")
-                    else:
-                        # Create new project only if name doesn't exist
-                        try:
-                            if DEBUG:
-                                print(f"Creating new project {project_name} with UUID: {project_id}")
-                            new_project = UserProject.objects.create(
-                                uuid=project_id,
-                                user=request.user,
-                                project_name=project_name,
-                                description=description
-                            )
-                            if DEBUG:
-                                print(f"After create, project.uuid: {new_project.uuid}")
-                        except Exception as e:
-                            # Log the error but continue processing other projects
-                            if DEBUG:
-                                print(f"Error creating project {project_name}: {str(e)}")
-                            continue
-            
-            context = {
-                'projects': api_projects,
-                'api_count': len(api_projects)
-            }
-            return render(request, 'project/project_list.html', context)
-        else:
-            messages.error(request, f"Failed to load projects from API: {response.text}")
+        if not success:
+            messages.error(request, f"Không thể tải danh sách dự án: {error_msg}")
             context = {
                 'projects': [],
-                'api_count': 0
+                'api_count': 0,
+                'api_error': True,
+                'error_message': error_msg
             }
             return render(request, 'project/project_list.html', context)
 
+        if DEBUG:
+            print(f"API Projects Response: {api_projects}")
+
+        # Sync API projects to local database for sidebar
+        for project_data in api_projects:
+            project_id = project_data.get('project_id')
+            project_name = project_data.get('project_name', '')
+            description = project_data.get('description', '')
+
+            if DEBUG:
+                print(f"Processing project: {project_name}")
+                print(f"Raw project_id from API: {project_id} (type: {type(project_id)})")
+
+            if project_id and project_name:
+                # Ensure project_id is a string
+                if isinstance(project_id, str):
+                    # Validate UUID format
+                    import uuid
+                    try:
+                        uuid.UUID(project_id)  # This will raise ValueError if invalid
+                        if DEBUG:
+                            print(f"Valid UUID string: {project_id}")
+                    except ValueError:
+                        if DEBUG:
+                            print(f"Invalid UUID format: {project_id}")
+                        continue
+                else:
+                    if DEBUG:
+                        print(f"Project_id is not a string: {project_id}")
+                    continue
+
+                # First try to find existing project by user and project_name
+                existing_project = UserProject.objects.filter(
+                    user=request.user,
+                    project_name=project_name
+                ).first()
+
+                if existing_project:
+                    # Update existing project
+                    if DEBUG:
+                        print(f"Updating existing project {project_name} with UUID: {project_id}")
+                    existing_project.uuid = project_id  # Update UUID if different
+                    existing_project.description = description
+                    existing_project.save()
+                    if DEBUG:
+                        print(f"After save, project.uuid: {existing_project.uuid}")
+                else:
+                    # Create new project only if name doesn't exist
+                    try:
+                        if DEBUG:
+                            print(f"Creating new project {project_name} with UUID: {project_id}")
+                        new_project = UserProject.objects.create(
+                            uuid=project_id,
+                            user=request.user,
+                            project_name=project_name,
+                            description=description
+                        )
+                        if DEBUG:
+                            print(f"After create, project.uuid: {new_project.uuid}")
+                    except Exception as e:
+                        # Log the error but continue processing other projects
+                        if DEBUG:
+                            print(f"Error creating project {project_name}: {str(e)}")
+                        continue
+
+        context = {
+            'projects': api_projects,
+            'api_count': len(api_projects),
+            'api_server_online': True
+        }
+        return render(request, 'project/project_list.html', context)
+
     except Exception as e:
-        messages.error(request, f"API Error: {str(e)}")
+        if DEBUG:
+            print(f"=== PROJECT LIST ERROR ===")
+            print(f"Error: {str(e)}")
+            print(f"==========================")
+        messages.error(request, f"Lỗi hệ thống: {str(e)}")
         context = {
             'projects': [],
-            'api_count': 0
+            'api_count': 0,
+            'api_error': True,
+            'error_message': str(e)
         }
         return render(request, 'project/project_list.html', context)
 
@@ -873,6 +1110,20 @@ def start_ai_processing(request, project_uuid):
         return JsonResponse({
             'success': False,
             'message': 'Không có document nào cần xử lý'
+        })
+
+    # Check API server status before starting processing
+    api_status, error_message = check_api_server_status()
+    if not api_status:
+        user_friendly_message = "Không thể bắt đầu xử lý AI vì API server hiện không khả dụng. Vui lòng kiểm tra trạng thái server và thử lại."
+        if DEBUG:
+            user_friendly_message += f" (Chi tiết: {error_message})"
+
+        return JsonResponse({
+            'success': False,
+            'message': user_friendly_message,
+            'api_offline': True,
+            'error_message': error_message
         })
 
     # Cập nhật trạng thái processing cho tất cả documents
