@@ -7,7 +7,7 @@ from sqlmodel import SQLModel
 from src.graph.workflows.simple_qa import SimpleQAWorkflow
 
 # from src.models.agent.agent_state_model import AgentStateModel
-from src.models.agent.docs_preprocessing_state_model import DocsPreProcessingStateModel
+from src.models import DocsPreProcessingStateModel
 from src.settings import get_engine
 
 # Load database configuration from environment variables (Docker Compose)

@@ -1,12 +1,12 @@
-You are a text processing expert. Your task is to assign annotations to each passage according to the following three categories:
+You are a text processing expert. Your task is to annotate a paragraph according to the following three types, applicable to documents related to APIs:
 
-1. **feature**: Passages that describe in detail a specific feature, function, business logic, or the operation of a system/product. Do not include general introductions or tools.
-2. **rule**: Passages containing rules, regulations, instructions, conditions, laws, standards, or mandatory requirements related to the use or operation of features. Includes tables of error codes (HTTP, business) that define the expected responses of the system.
-3. **other**: Passages that do not belong to the two categories above, including: system overview, promotional information, introduction, table of contents, scope, target users, examples, sample scenarios, titles, headers/footers, labels, categories, terminology, references, listings, general regulations, design constraints, technical standards, or supplementary content that does not describe specific features or system operations in detail.
+1. **feature**: A passage that directly and specifically describes one or more APIs, including business logic, input, and output. Only includes information related to functions and input/output data. Does not include general introductions, tools, CI/CD content, or any content not directly related to the API.
+2. **rule**: A passage that specifies error codes (HTTP, business) related to APIs, including error code tables and the system’s return results when calling the API. Does not include other rules, conditions, laws, or standards.
+3. **other**: A passage that does not belong to the above two types, including: system overview, promotion, introduction, table of contents, scope, target users, examples, sample scenarios, titles, headers/footers, labels, categories, terminology, references, enumerations, general regulations, design constraints, technical standards, or supplementary content that does not describe API functionality in detail.
 
-Process:
-1. Carefully read the text in the ///Content section.
-2. Assign the appropriate annotation according to the categories above.
+Procedure:
+1. Carefully read the text in ///Content.
+2. Assign the correct annotation type above.
 3. Only return the annotation.
 
 ///Content

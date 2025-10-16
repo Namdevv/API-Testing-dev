@@ -9,16 +9,20 @@ import nltk
 import redis
 from dotenv import load_dotenv
 from minio import Minio
-from sqlmodel import create_engine
+from sqlmodel import SQLModel, create_engine
 
-from src.utils.check_google_api_tokens import check_google_api_tokens
+from src.common.check_google_api_tokens import check_google_api_tokens
 
 load_dotenv()
 
-ENVIRONMENT = os.getenv("ENVIRONMENT", "production")
+ENVIRONMENT = os.getenv("ENVIRONMENT", "dev")
 
 # Múi giờ Việt Nam
 VN_TIMEZONE = ZoneInfo("Asia/Ho_Chi_Minh")
+
+
+def get_now_vn():
+    return datetime.now(VN_TIMEZONE).isoformat(timespec="milliseconds")
 
 
 # Custom formatter cho múi giờ Việt Nam
@@ -36,7 +40,7 @@ POSTGRES_USER = os.getenv("POSTGRES_USER", "admin")
 POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "admin")
 POSTGRES_HOST = os.getenv("POSTGRES_HOST", "localhost")
 POSTGRES_PORT = os.getenv("POSTGRES_PORT", "5432")
-DATABASE_URL = f"postgresql+psycopg2://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
+DATABASE_URL = f"postgresql+psycopg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
 
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
 REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
@@ -46,14 +50,10 @@ MINIO_URL = os.getenv("MINIO_URL", "localhost:9000")
 MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY", "minioadmin")
 MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY", "minioadmin")
 
-MILVUS_HOST = os.getenv("MILVUS_HOST", "localhost")
-MILVUS_PORT = os.getenv("MILVUS_PORT", "19530")
-MILVUS_TOKEN = os.getenv("MILVUS_TOKEN", "root:Milvus")
 
-MILVUS_URI = "http://{}:{}".format(MILVUS_HOST, MILVUS_PORT)
+EMBEDDING_DIM = 3072
 
 GOOGLE_API_KEYS = None
-
 
 with open("env/google_api_keys.txt", "r") as f:
     GOOGLE_API_KEYS = [line.strip() for line in f.readlines() if line.strip()]
@@ -71,6 +71,7 @@ initialize_nltk()
 
 
 def get_minio_client():
+    logging.info(f"Connecting to MinIO at '{MINIO_URL}'")
     return Minio(
         MINIO_URL,
         access_key=MINIO_ACCESS_KEY,
@@ -81,12 +82,37 @@ def get_minio_client():
 
 # --- Hàm khởi tạo ---
 def get_engine():
+    logging.info(f"Connecting to database at '{DATABASE_URL}'")
     return create_engine(DATABASE_URL)
+
+
+def create_vector_extension():
+    """Create the 'vector' extension in Postgres if it does not exist."""
+    from sqlalchemy import text
+
+    engine = get_engine()
+    with engine.connect() as conn:
+        conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector;"))
+        conn.commit()
+
+
+create_vector_extension()
+
+
+# initialize database
+def init_db():
+    from src import repositories  # noqa: F401
+
+    SQLModel.metadata.create_all(get_engine())
 
 
 def get_redis_client():
     return redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=REDIS_DB)
 
+
+# Runtime data
+RUNTIME_DATA_DIR = Path(__file__).parent.parent / "data"
+RUNTIME_DATA_DIR.mkdir(exist_ok=True)
 
 # --- Logging ---
 LOG_DIR = Path(__file__).parent.parent / "logs"
