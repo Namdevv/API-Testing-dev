@@ -1,0 +1,19 @@
+services:
+  backend:
+    command: ["uvicorn", "main:app", "--reload", "--host", "0.0.0.0"]
+    ports:
+      - "8080:8000"
+    volumes:
+      - ${PROJECT_ROOT}/:/app
+    environment:
+      - DEBUG=True
+    # profiles:
+    #   - disabled
+
+  ollama:
+    ports:
+      - "11434:11434"
+      
+  cloudflare_tunnel:
+    profiles:
+      - disabled

@@ -1,0 +1,35 @@
+FROM model.gguf
+
+TEMPLATE """{{- if .System }}<|start_header_id|>system<|end_header_id|>
+
+{{ .System }}<|eot_id|>
+{{- end }}
+{{- range .Tools }}
+TOOL: {{ .Function.Name }}
+DESCRIPTION: {{ .Function.Description }}
+{{- end }}
+{{- range .Messages }}
+{{- if eq .Role "user" }}<|start_header_id|>user<|end_header_id|>
+
+{{ .Content }}<|eot_id|>
+{{- else if eq .Role "assistant" }}<|start_header_id|>assistant<|end_header_id|>
+
+{{- if .ToolCalls }}
+I'll help you with that by using a tool.
+{{- range .ToolCalls }}
+Using tool: {{ .Function.Name }}
+With parameters: {{ .Function.Arguments }}
+{{- end }}
+{{- else }}
+{{ .Content }}
+{{- end }}<|eot_id|>
+{{- else if eq .Role "tool" }}<|start_header_id|>tool<|end_header_id|>
+
+Tool: {{ .Name }}
+Result: {{ .Content }}<|eot_id|>
+{{- end }}
+{{- end }}<|start_header_id|>assistant<|end_header_id|>
+
+"""
+
+SYSTEM "You are a helpful assistant."

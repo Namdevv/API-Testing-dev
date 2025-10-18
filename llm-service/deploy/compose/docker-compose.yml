@@ -1,0 +1,63 @@
+services:
+  llm:
+    image: llm-service
+    restart: on-failure:5
+    volumes:
+      - backend_data:/backend_data
+      - ${PROJECT_ROOT}/models:/models
+      - ${PROJECT_ROOT}/modelfile:/modelfile
+      - /var/run/docker.sock:/var/run/docker.sock
+    deploy:
+      resources:
+        limits:
+          cpus: '4.00'
+          memory: 4GB
+        reservations:
+          cpus: '2.00'
+          memory: 2GB
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.llm.rule=PathPrefix(`/llm-service/llm`)"
+      - "traefik.http.routers.llm.entrypoints=api-t"
+      - "traefik.http.services.llm.loadbalancer.server.port=8000"
+    networks:
+      - local_net
+      - gateway_net
+
+  ollama:
+    image: ollama/ollama
+    container_name: ${COMPOSE_PROJECT_NAME}_ollama
+    volumes:
+      - ollama:/root/.ollama
+      - ${PROJECT_ROOT}/models:/models
+      - ${PROJECT_ROOT}/modelfile:/modelfile
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ollama.rule=PathPrefix(`/llm-service/ollama`)"
+      - "traefik.http.routers.ollama.entrypoints=api-t"
+      - "traefik.http.middlewares.ollama-stripper.stripprefix.prefixes=/llm-service/ollama"
+      - "traefik.http.routers.ollama.middlewares=ollama-stripper"
+      - "traefik.http.services.ollama.loadbalancer.server.port=11434"
+    networks:
+      - gateway_net
+      - local_net
+
+volumes:
+  backend_data:
+  ollama:
+
+networks:
+  gateway_net:
+    external: true
+  local_net:
+    driver: bridge
