@@ -1,0 +1,48 @@
+services:
+  gateway:
+    image: traefik:latest
+    command:
+      - "--configFile=/etc/traefik/traefik.yml"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./logs:/var/log/traefik
+    networks:
+      - gateway_net
+      - cloudflare_tunnel_net
+  
+
+  cloudflare_tunnel:
+    image: cloudflare/cloudflared:latest
+    command: tunnel run
+    restart: on-failure:5
+    environment:
+      - TUNNEL_TOKEN
+      - NO_AUTOUPDATE
+      - TUNNEL_ORIGIN_KEEPALIVE_TIMEOUT=30s
+    healthcheck:
+      test: ["CMD", "cloudflared", "--version"]
+      interval: 30s
+      timeout: 10s
+      start_period: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512MB
+        reservations:
+          cpus: '0.25'
+          memory: 256MB
+    networks:
+      - cloudflare_tunnel_net
+
+volumes:
+  backend_data:
+  ollama:
+
+networks:
+  gateway_net:
+    external: true
+  cloudflare_tunnel_net:
+    external: true

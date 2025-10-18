@@ -13,6 +13,20 @@ if [ -f "$PROJECT_ROOT/.env" ]; then
     export $(grep -v '^#' "$PROJECT_ROOT/.env" | xargs)
 fi
 
+# --- Thêm: kiểm tra và tạo docker network "gateway_net" nếu chưa tồn tại ---
+if ! docker network inspect gateway_net >/dev/null 2>&1; then
+    echo "Docker network 'gateway_net' not found. Creating..."
+    docker network create gateway_net
+fi
+# --- kết thúc thêm ---
+# --- Thêm: kiểm tra và tạo docker network "cloudflare_tunnel_net" nếu chưa tồn tại ---
+if ! docker network inspect cloudflare_tunnel_net >/dev/null 2>&1; then
+    echo "Docker network 'cloudflare_tunnel_net' not found. Creating..."
+    docker network create cloudflare_tunnel_net
+fi
+# --- kết thúc thêm ---
+
+
 # Xác định file compose
 COMPOSE_FILE="$PROJECT_ROOT/deploy/compose/docker-compose.yml"
 OVERRIDE_FILE="$PROJECT_ROOT/deploy/compose/docker-compose.override.yml"
