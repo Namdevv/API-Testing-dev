@@ -34,6 +34,7 @@ services:
       - ollama:/root/.ollama
       - ${PROJECT_ROOT}/models:/models
       - ${PROJECT_ROOT}/modelfile:/modelfile
+    restart: on-failure:5
     deploy:
       resources:
         reservations:

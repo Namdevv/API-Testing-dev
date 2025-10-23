@@ -1,6 +1,7 @@
 services:
   gateway:
     image: traefik:latest
+    restart: on-failure:5
     command:
       - "--configFile=/etc/traefik/traefik.yml"
     volumes:
