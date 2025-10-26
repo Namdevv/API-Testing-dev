@@ -63,20 +63,13 @@ class TextExtractorNode(BaseAgentService):
         return self
 
     def __fix_orc_split_text(self, text, lang):
-        self.set_system_prompt(lang=lang)
+        self.set_system_lang(lang=lang)
 
         corrected_text = ""
 
         chunks = self.__text_splitter.split_text(text)
 
-        batches = [
-            {
-                "input": chunk,
-                "chat_history": [],
-            }
-            for chunk in chunks
-        ]
-        responses = self.runs_parallel(batches, batch_size=self.batch_size)
+        responses = self.runs_parallel(chunks, batch_size=self.batch_size)
 
         corrected_text += "\n".join(responses)
 

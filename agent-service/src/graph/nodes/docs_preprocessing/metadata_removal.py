@@ -39,20 +39,13 @@ class MetaDataRemovalNode(BaseAgentService):
     @validate_call
     def __call__(self, state: DocsPreProcessingStateModel) -> Dict[str, Any]:
         data = state.messages[-1].content
-        self.set_system_prompt(state.lang)
+        self.set_system_lang(state.lang)
 
         result_text = ""
         chunks = self.__text_splitter.split_text(data)
 
-        batches = [
-            {
-                "input": chunk,
-                "chat_history": [],
-            }
-            for chunk in chunks
-        ]
         responses = self.runs_parallel(
-            batches, batch_size=self.batch_size, max_workers=self.max_workers
+            chunks, batch_size=self.batch_size, max_workers=self.max_workers
         )
 
         result_text += "\n".join(responses) + "\n"
