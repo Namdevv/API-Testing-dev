@@ -1,15 +1,11 @@
 FROM python:3.12.11-slim
 
-# fix CVE-2025-6020
-RUN apt-get update \
-    && apt-get install -y --only-upgrade libpam-modules libpam-modules-bin libpam-runtime libpam0g \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
-
 RUN apt-get update && apt-get install -y \
     pkg-config \
-    default-libmysqlclient-dev \
+    # default-libmysqlclient-dev \
     build-essential \
+    #for docling
+    libgl1 libglib2.0-0 curl wget git procps \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -17,6 +13,9 @@ WORKDIR /app
 COPY requirements.txt /app
 
 RUN pip install --no-cache-dir -r requirements.txt
+
+# Install docling-tools and download models
+RUN docling-tools models download
 
 COPY . /app
 
