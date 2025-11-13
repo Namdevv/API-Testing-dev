@@ -454,14 +454,14 @@ function loadFRAnnotations(analyzeOverride = null) {
                 statusBadge.className = `badge ${fr.is_selected ? 'bg-success' : 'bg-secondary'}`;
                 statusBadge.textContent = fr.is_selected ? 'Selected' : 'Not Selected';
 
-                const viewDetailsBtn = document.createElement('button');
-                viewDetailsBtn.className = 'btn btn-sm btn-outline-info';
-                viewDetailsBtn.innerHTML = '<i class="bi bi-eye"></i>';
-                viewDetailsBtn.title = 'View FR Details';
-                viewDetailsBtn.onclick = () => showFRDetails(fr, fr.fr_info_id);
+                // const viewDetailsBtn = document.createElement('button');
+                // viewDetailsBtn.className = 'btn btn-sm btn-outline-info';
+                // viewDetailsBtn.innerHTML = '<i class="bi bi-eye"></i>';
+                // viewDetailsBtn.title = 'View FR Details';
+                // viewDetailsBtn.onclick = () => showFRDetails(fr, fr.fr_info_id);
 
                 controlsRight.appendChild(statusBadge);
-                controlsRight.appendChild(viewDetailsBtn);
+                // controlsRight.appendChild(viewDetailsBtn);
 
                 controlsRow.appendChild(frId);
                 controlsRow.appendChild(controlsRight);
