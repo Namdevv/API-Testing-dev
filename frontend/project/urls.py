@@ -21,6 +21,10 @@ urlpatterns = [
     path('<uuid:project_uuid>/annotate-fr/', views.get_fr_infors, name='annotate_fr_api'),
     path('<uuid:project_uuid>/select-fr/', views.select_fr_info, name='select_fr_info'),
     
+    # Test Case Generation URLs
+    path('<uuid:project_uuid>/test-cases/generate/', views.generate_test_cases, name='generate_test_cases'),
+    path('<uuid:project_uuid>/test-cases/status/', views.check_test_case_status, name='check_test_case_status'),
+    path('<uuid:project_uuid>/test-cases/', views.get_test_cases, name='get_test_cases'),
 
     # API Integration URLs
     path('api/create/', views.api_create_project, name='api_create_project'),

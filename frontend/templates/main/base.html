@@ -25,6 +25,63 @@
     <link rel="stylesheet" href="{% static 'css/message.css' %}">
     <link rel="stylesheet" href="{% static 'css/register.css' %}">
     <link rel="stylesheet" href="{% static 'css/login.css' %}">
+    <script>
+    // Apply sidebar state immediately before page render to prevent flash
+    (function() {
+        try {
+            const savedState = localStorage.getItem('sidebarCollapsed');
+            const isCollapsed = savedState === 'true';
+            
+            if (isCollapsed) {
+                // Disable transitions and hide text immediately to prevent flash
+                const style = document.createElement('style');
+                style.id = 'sidebar-collapsed-inline';
+                style.textContent = `
+                    .sidebar-chatgpt { 
+                        width: 70px !important; 
+                        min-width: 70px !important; 
+                        max-width: 70px !important;
+                        transition: none !important;
+                    }
+                    .sidebar-chatgpt .brand-text,
+                    .sidebar-chatgpt .nav-link span,
+                    .sidebar-chatgpt .nav-section-header span,
+                    .sidebar-chatgpt .nav-section-header,
+                    .sidebar-chatgpt .new-project-btn span,
+                    .sidebar-chatgpt .user-info,
+                    .sidebar-chatgpt .user-chevron,
+                    .sidebar-chatgpt .auth-btn span,
+                    .sidebar-chatgpt span:not([class*="tooltip"]) {
+                        display: none !important;
+                        opacity: 0 !important;
+                        visibility: hidden !important;
+                        font-size: 0 !important;
+                    }
+                    main { 
+                        width: calc(100vw - 70px) !important; 
+                        max-width: calc(100vw - 70px) !important;
+                        transition: none !important;
+                    }
+                    body > .d-flex > .sidebar-chatgpt {
+                        width: 70px !important;
+                        min-width: 70px !important;
+                        max-width: 70px !important;
+                    }
+                `;
+                if (document.head) {
+                    document.head.appendChild(style);
+                } else {
+                    // Fallback for older browsers
+                    const script = document.createElement('script');
+                    script.textContent = 'document.write("' + style.outerHTML.replace(/"/g, '\\"') + '");';
+                    document.head ? document.head.appendChild(script) : (document.body ? document.body.appendChild(script) : null);
+                }
+            }
+        } catch(e) {
+            // Ignore errors if localStorage is not available
+        }
+    })();
+    </script>
     <style>
 
     </style>

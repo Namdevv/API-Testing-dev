@@ -1,14 +1,29 @@
 {% load static %}
-<div class="sidebar-chatgpt">
+<script>
+// Add collapsed class immediately if needed (before DOM renders)
+(function() {
+    try {
+        const savedState = localStorage.getItem('sidebarCollapsed');
+        if (savedState === 'true') {
+            // Set a flag that the sidebar should be collapsed
+            window.__sidebarCollapsed = true;
+        }
+    } catch(e) {}
+})();
+</script>
+<div class="sidebar-chatgpt" id="sidebarElement" data-initial-state="">
     <!-- Header -->
     <div class="sidebar-header">
+        <button class="sidebar-toggle-btn" id="sidebarToggle" title="Toggle sidebar">
+            <i class="fa fa-bars"></i>
+        </button>
         <a href="/" class="brand-link">
-            <span>APIT</span>
+            <span class="brand-text">APIT</span>
         </a>
     </div>
 
     <!-- New Project Button -->
-    <a href="{% url 'project_add' %}" class="new-project-btn">
+    <a href="{% url 'project_add' %}" class="new-project-btn" data-tooltip="New Project">
         <i class="fa fa-plus"></i>
         <span>New Project</span>
     </a>
@@ -22,13 +37,13 @@
         </div>
         <ul class="nav nav-pills flex-column">
             <li class="nav-item">
-                <a href="{% url 'home' %}" class="nav-link {% if request.resolver_match.url_name == 'home' %}active{% endif %}">
+                <a href="{% url 'home' %}" class="nav-link {% if request.resolver_match.url_name == 'home' %}active{% endif %}" data-tooltip="Home">
                     <i class="fa fa-home"></i>
                     <span>Home</span>
                 </a>
             </li>
             <li class="nav-item">
-                <a href="{% url 'library' %}" class="nav-link {% if request.resolver_match.url_name == 'library' %}active{% endif %}">
+                <a href="{% url 'library' %}" class="nav-link {% if request.resolver_match.url_name == 'library' %}active{% endif %}" data-tooltip="Thư viện">
                     <i class="fa fa-book"></i>
                     <span>Thư viện</span>
                 </a>
@@ -38,7 +53,7 @@
         <!-- Projects Section -->
         <div class="nav-section-header">
             <span>Projects</span>
-            <button class="add-btn-header" onclick="window.location.href='{% url 'project_add' %}'" title="Add new project">
+            <button class="add-btn-header" data-url="{% url 'project_add' %}" title="Add new project">
                 <i class="fa fa-plus"></i>
             </button>
         </div>
@@ -57,7 +72,7 @@
             <li><hr class="dropdown-divider"></li>
             {% endif %}
             <li class="nav-item">
-                <a href="{% url 'project_list' %}" class="nav-link">
+                <a href="{% url 'project_list' %}" class="nav-link" data-tooltip="All Projects">
                     <i class="fa fa-list"></i>
                     <span>All Projects</span>
                 </a>
@@ -68,7 +83,7 @@
         <!-- Test Suites Section -->
         <div class="nav-section-header">
             <span>Test Suites</span>
-            <button class="add-btn-header" onclick="window.location.href='{% url 'test_suite_add' project_uuid=project.uuid %}'" title="Add new test suite">
+            <button class="add-btn-header" data-url="{% url 'test_suite_add' project_uuid=project.uuid %}" title="Add new test suite">
                 <i class="fa fa-plus"></i>
             </button>
         </div>
@@ -94,7 +109,8 @@
                     type="button" 
                     id="dropdownUser1" 
                     data-bs-toggle="dropdown" 
-                    aria-expanded="false">
+                    aria-expanded="false"
+                    data-tooltip="{{ user.username }}">
                 <div class="user-avatar">
                     {{ user.username|first|upper }}
                 </div>
@@ -148,11 +164,11 @@
 
     <!-- Authentication Section -->
     <div class="auth-section">
-        <a href="{% url 'login' %}" class="auth-btn login">
+        <a href="{% url 'login' %}" class="auth-btn login" data-tooltip="Login">
             <i class="fa fa-sign-in-alt"></i>
             <span>Login</span>
         </a>
-        <a href="{% url 'register' %}" class="auth-btn register">
+        <a href="{% url 'register' %}" class="auth-btn register" data-tooltip="Register">
             <i class="fa fa-user-plus"></i>
             <span>Register</span>
         </a>
@@ -162,7 +178,180 @@
 
 <!-- JavaScript for enhanced functionality -->
 <script>
+// Apply state immediately when sidebar element exists (before DOMContentLoaded)
+(function() {
+    let stateApplied = false; // Flag to prevent multiple applications
+    
+    try {
+        const isCollapsed = window.__sidebarCollapsed || localStorage.getItem('sidebarCollapsed') === 'true';
+        
+        function applyState() {
+            if (stateApplied) return; // Already applied, skip
+            
+            const sidebar = document.getElementById('sidebarElement');
+            const mainContent = document.querySelector('main');
+            
+            if (sidebar && isCollapsed) {
+                // Disable ALL transitions immediately
+                const originalTransition = sidebar.style.transition;
+                sidebar.style.setProperty('transition', 'none', 'important');
+                if (mainContent) {
+                    mainContent.style.setProperty('transition', 'none', 'important');
+                }
+                
+                // Apply state immediately
+                if (!sidebar.classList.contains('collapsed')) {
+                    sidebar.classList.add('collapsed');
+                }
+                sidebar.style.setProperty('width', '70px', 'important');
+                sidebar.style.setProperty('min-width', '70px', 'important');
+                sidebar.style.setProperty('max-width', '70px', 'important');
+                
+                if (mainContent) {
+                    if (!mainContent.classList.contains('sidebar-collapsed')) {
+                        mainContent.classList.add('sidebar-collapsed');
+                    }
+                    mainContent.style.setProperty('width', 'calc(100vw - 70px)', 'important');
+                    mainContent.style.setProperty('max-width', 'calc(100vw - 70px)', 'important');
+                }
+                
+                // Force reflow to ensure styles are applied
+                void sidebar.offsetWidth;
+                
+                // Re-enable transitions after styles are applied
+                setTimeout(function() {
+                    sidebar.style.removeProperty('transition');
+                    if (mainContent) {
+                        mainContent.style.removeProperty('transition');
+                    }
+                }, 100);
+                
+                stateApplied = true;
+            }
+        }
+        
+        // Use MutationObserver to catch when sidebar is added to DOM
+        if (document.readyState === 'loading') {
+            const observer = new MutationObserver(function(mutations) {
+                const sidebar = document.getElementById('sidebarElement');
+                if (sidebar) {
+                    observer.disconnect();
+                    applyState();
+                }
+            });
+            observer.observe(document.body || document.documentElement, {
+                childList: true,
+                subtree: true
+            });
+        }
+        
+        // Also try immediately
+        if (document.readyState !== 'loading') {
+            applyState();
+        }
+        
+        // Fallback: try on DOMContentLoaded
+        document.addEventListener('DOMContentLoaded', function() {
+            applyState();
+        }, { once: true });
+        
+    } catch(e) {
+        console.error('Sidebar state application error:', e);
+    }
+})();
+
 document.addEventListener('DOMContentLoaded', function() {
+    // Sidebar toggle functionality
+    const sidebar = document.querySelector('.sidebar-chatgpt');
+    const toggleBtn = document.getElementById('sidebarToggle');
+    const mainContent = document.querySelector('main');
+    
+    // Check if elements exist
+    if (!sidebar || !toggleBtn) {
+        return;
+    }
+    
+    // Load saved sidebar state from localStorage
+    const savedState = localStorage.getItem('sidebarCollapsed');
+    const isCollapsed = savedState === 'true';
+    
+    // Apply initial state immediately
+    function applySidebarState(collapsed) {
+        if (collapsed) {
+            sidebar.classList.add('collapsed');
+            sidebar.style.setProperty('width', '70px', 'important');
+            sidebar.style.setProperty('min-width', '70px', 'important');
+            sidebar.style.setProperty('max-width', '70px', 'important');
+            if (mainContent) {
+                mainContent.classList.add('sidebar-collapsed');
+                mainContent.style.setProperty('width', 'calc(100vw - 70px)', 'important');
+                mainContent.style.setProperty('max-width', 'calc(100vw - 70px)', 'important');
+            }
+        } else {
+            sidebar.classList.remove('collapsed');
+            sidebar.style.setProperty('width', '280px', 'important');
+            sidebar.style.setProperty('min-width', '280px', 'important');
+            sidebar.style.setProperty('max-width', '280px', 'important');
+            if (mainContent) {
+                mainContent.classList.remove('sidebar-collapsed');
+                mainContent.style.setProperty('width', 'calc(100vw - 280px)', 'important');
+                mainContent.style.setProperty('max-width', 'calc(100vw - 280px)', 'important');
+            }
+        }
+    }
+    
+    // Apply saved state - verify it's correct (only if not already applied)
+    if (isCollapsed && !sidebar.classList.contains('collapsed')) {
+        // Disable transition temporarily
+        sidebar.style.setProperty('transition', 'none', 'important');
+        if (mainContent) {
+            mainContent.style.setProperty('transition', 'none', 'important');
+        }
+        applySidebarState(true);
+        // Re-enable transition
+        setTimeout(function() {
+            sidebar.style.removeProperty('transition');
+            if (mainContent) {
+                mainContent.style.removeProperty('transition');
+            }
+        }, 50);
+    } else if (!isCollapsed && sidebar.classList.contains('collapsed')) {
+        // Disable transition temporarily
+        sidebar.style.setProperty('transition', 'none', 'important');
+        if (mainContent) {
+            mainContent.style.setProperty('transition', 'none', 'important');
+        }
+        applySidebarState(false);
+        // Re-enable transition
+        setTimeout(function() {
+            sidebar.style.removeProperty('transition');
+            if (mainContent) {
+                mainContent.style.removeProperty('transition');
+            }
+        }, 50);
+    }
+    
+    // Toggle sidebar
+    toggleBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const isNowCollapsed = !sidebar.classList.contains('collapsed');
+        applySidebarState(isNowCollapsed);
+        
+        // Save state to localStorage
+        localStorage.setItem('sidebarCollapsed', isNowCollapsed.toString());
+    });
+    
+    // Add tooltips to nav links that don't have them yet
+    const navLinksWithoutTooltip = document.querySelectorAll('.sidebar-chatgpt .nav-link:not([data-tooltip])');
+    navLinksWithoutTooltip.forEach(link => {
+        const span = link.querySelector('span');
+        if (span && span.textContent.trim()) {
+            link.setAttribute('data-tooltip', span.textContent.trim());
+        }
+    });
+    
     // Handle active nav links
     const currentPath = window.location.pathname;
     const navLinks = document.querySelectorAll('.sidebar-chatgpt .nav-link');
@@ -178,12 +367,23 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Smooth scrolling for sidebar
-    const sidebar = document.querySelector('.sidebar-chatgpt .nav-container');
-    if (sidebar) {
-        sidebar.addEventListener('wheel', function(e) {
+    const navContainer = document.querySelector('.sidebar-chatgpt .nav-container');
+    if (navContainer) {
+        navContainer.addEventListener('wheel', function(e) {
             e.stopPropagation();
         });
     }
+
+    // Handle add button clicks
+    const addButtons = document.querySelectorAll('.sidebar-chatgpt .add-btn-header[data-url]');
+    addButtons.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const url = this.getAttribute('data-url');
+            if (url) {
+                window.location.href = url;
+            }
+        });
+    });
 
     // Close dropdowns when clicking outside
     document.addEventListener('click', function(e) {

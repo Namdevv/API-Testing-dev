@@ -3,21 +3,55 @@
 <div class="card-header bg-info text-white">
     <h5 class="mb-0">🤖 AI Test Case Generation</h5>
 </div>
-<div class="card-body text-center">
-    <div class="mb-3">
-        <i class="bi bi-robot" style="font-size: 3rem; color: #0dcaf0;"></i>
+<div class="card-body">
+    <!-- AI Processing State -->
+    <div id="testCaseProcessingContainer" class="text-center">
+        <div class="mb-3">
+            <i class="bi bi-robot" style="font-size: 3rem; color: #0dcaf0;"></i>
+        </div>
+        <h4 id="testCaseStatusText">Đang bắt đầu tạo Test Cases...</h4>
+        <div class="progress mb-3" style="height: 20px;">
+            <div class="progress-bar progress-bar-striped progress-bar-animated bg-info"
+                 id="testCaseProgressBar" role="progressbar" style="width: 0%">
+            </div>
+        </div>
+        <p id="testCaseStatusMessage" class="text-muted">AI đang tạo test cases từ các sections đã chọn...</p>
+        <div id="testCaseStatusIndicator" class="mt-3">
+            <div class="spinner-border text-info" role="status">
+                <span class="visually-hidden">Processing...</span>
+            </div>
+        </div>
     </div>
-    <h4>Generate Test Cases from Selected Sections</h4>
-    <p class="text-muted">AI will create comprehensive test cases based on your selected sections.</p>
 
-    <div class="mt-4">
-        <button class="btn btn-info btn-lg" onclick="generateTestSuite()" id="generateTestSuiteBtn">
-            <i class="bi bi-gear-fill"></i> Generate Test Suite
-        </button>
-    </div>
-
-    <div id="testSuiteResult" class="mt-4" style="display: none;">
-        <!-- Test suite generation result will be shown here -->
+    <!-- Test Cases Results State -->
+    <div id="testCaseResultsContainer" style="display: none;">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <!-- <h5 class="mb-0">Test Cases Đã Tạo</h5> -->
+            <!-- <button class="btn btn-sm btn-outline-secondary" onclick="refreshTestCases()" id="refreshTestCasesBtn">
+                <i class="bi bi-arrow-clockwise"></i> Làm mới
+            </button> -->
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover table-striped" id="testCasesTable">
+                <thead class="table-info">
+                    <tr>
+                        <th>#</th>
+                        <th>Test Case ID</th>
+                        <th>Tên Test Case</th>
+                        <th>Mô tả</th>
+                        <th>Độ ưu tiên</th>
+                        <th>Trạng thái</th>
+                        <th>Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody id="testCasesTableBody">
+                    <!-- Test cases will be populated here -->
+                </tbody>
+            </table>
+        </div>
+        <div class="mt-3 text-center">
+            <p class="text-muted" id="testCasesCount">Tổng: 0 test cases</p>
+        </div>
     </div>
 </div>
 </div>

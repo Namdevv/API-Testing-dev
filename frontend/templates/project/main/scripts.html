@@ -75,13 +75,12 @@ function nextStep() {
             showNotification('warning', 'Cảnh báo', 'Vui lòng chờ AI xử lý hoàn thành.');
         }
     } else if (currentStep === 3) {
-        // Check if FR selections are saved
-        const saveButton = document.querySelector('button[onclick="saveFRSelections()"]');
-        if (saveButton && saveButton.style.display !== 'none') {
-            showNotification('warning', 'Cảnh báo', 'Vui lòng lưu lựa chọn Functional Requirements trước khi tiếp tục.');
-        } else {
-            setStep(4);
-        }
+        // Temporarily disabled check - allow next without validation
+        setStep(4);
+        // Auto start AI test case generation when entering step 4
+        setTimeout(() => {
+            startTestCaseGeneration('{{ project.uuid }}');
+        }, 500);
     } else if (currentStep < totalSteps) {
         setStep(currentStep + 1);
     }
@@ -243,6 +242,245 @@ function checkAIStatusLoop(projectUuid) {
 
     // Start checking after 1 second
     setTimeout(checkStatus, 1000);
+}
+
+// Test Case Generation Functions
+function startTestCaseGeneration(projectUuid) {
+    // Reset UI to show processing
+    document.getElementById('testCaseProcessingContainer').style.display = 'block';
+    document.getElementById('testCaseResultsContainer').style.display = 'none';
+    document.getElementById('testCaseStatusText').textContent = 'Đang bắt đầu tạo Test Cases...';
+    document.getElementById('testCaseStatusMessage').textContent = 'AI đang tạo test cases từ các sections đã chọn...';
+    document.getElementById('testCaseProgressBar').style.width = '0%';
+
+    // Realistic progress stages for test case generation
+    const progressStages = [
+        { progress: 5, message: 'Đang khởi tạo quá trình tạo test cases...', duration: 2000 },
+        { progress: 15, message: 'Đang phân tích các sections đã chọn...', duration: 2500 },
+        { progress: 30, message: 'Đang trích xuất functional requirements...', duration: 3000 },
+        { progress: 45, message: 'Đang tạo test scenarios...', duration: 4000 },
+        { progress: 60, message: 'Đang tạo test cases...', duration: 5000 },
+        { progress: 75, message: 'Đang xác thực test cases...', duration: 3000 },
+        { progress: 85, message: 'Đang hoàn thiện test suite...', duration: 2000 },
+        { progress: 95, message: 'Sắp hoàn thành...', duration: 1000 }
+    ];
+
+    let currentStage = 0;
+    let progressInterval;
+
+    function updateProgress() {
+        if (currentStage < progressStages.length) {
+            const stage = progressStages[currentStage];
+            document.getElementById('testCaseProgressBar').style.width = stage.progress + '%';
+            document.getElementById('testCaseStatusMessage').textContent = stage.message;
+
+            currentStage++;
+            setTimeout(updateProgress, stage.duration);
+        } else {
+            // Keep at 95% until actual completion
+            document.getElementById('testCaseProgressBar').style.width = '95%';
+            document.getElementById('testCaseStatusMessage').textContent = 'Đang chờ hoàn thành...';
+        }
+    }
+
+    // Start the staged progress
+    setTimeout(updateProgress, 500);
+
+    fetch(`/project/${projectUuid}/test-cases/generate/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            'Content-Type': 'application/json'
+        },
+        _timeoutMs: 120000
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Start checking status
+            checkTestCaseStatusLoop(projectUuid);
+        } else {
+            // Stop any ongoing progress updates
+            document.getElementById('testCaseStatusText').textContent = 'Error';
+            document.getElementById('testCaseStatusMessage').textContent = data.message;
+            document.getElementById('testCaseStatusIndicator').innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle"></i> ${data.message}
+                </div>
+            `;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        document.getElementById('testCaseStatusText').textContent = 'Error';
+        document.getElementById('testCaseStatusMessage').textContent = 'An error occurred while starting test case generation.';
+        document.getElementById('testCaseStatusIndicator').innerHTML = `
+            <div class="alert alert-danger">
+                <i class="bi bi-exclamation-triangle"></i> An error occurred while starting test case generation.
+            </div>
+        `;
+    });
+}
+
+function checkTestCaseStatusLoop(projectUuid) {
+    let checking = false;
+    const checkStatus = () => {
+        if (checking) return; // prevent overlap
+        checking = true;
+        fetch(`/project/${projectUuid}/test-cases/status/`, { _noLoading: true, _timeoutMs: 15000, _retries: 1 })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'completed') {
+                // Gradually complete the progress bar
+                let finalProgress = 95;
+                const finalInterval = setInterval(() => {
+                    finalProgress += 1;
+                    document.getElementById('testCaseProgressBar').style.width = finalProgress + '%';
+                    if (finalProgress >= 100) {
+                        clearInterval(finalInterval);
+                        document.getElementById('testCaseStatusText').textContent = 'Hoàn thành tạo Test Cases!';
+                        document.getElementById('testCaseStatusMessage').textContent = 'Test cases đã được tạo thành công.';
+                        document.getElementById('testCaseStatusIndicator').innerHTML = `
+                            <div class="alert alert-success">
+                                <i class="bi bi-check-circle"></i> Tạo test cases hoàn thành thành công!
+                            </div>
+                        `;
+                        // Fetch test cases after completion
+                        setTimeout(() => {
+                            fetchTestCases(projectUuid);
+                        }, 1000);
+                    }
+                }, 50);
+            } else if (data.status === 'processing') {
+                // Update status message with progress info
+                document.getElementById('testCaseStatusMessage').textContent = data.message;
+                // Continue checking
+                setTimeout(() => { checking = false; checkStatus(); }, 2000);
+            } else {
+                // Stop progress updates
+                document.getElementById('testCaseStatusText').textContent = 'Error';
+                document.getElementById('testCaseStatusMessage').textContent = data.message;
+                document.getElementById('testCaseStatusIndicator').innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle"></i> ${data.message}
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('testCaseStatusText').textContent = 'Error';
+            document.getElementById('testCaseStatusMessage').textContent = 'An error occurred while checking status.';
+            document.getElementById('testCaseStatusIndicator').innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle"></i> An error occurred while checking status.
+                </div>
+            `;
+        })
+        .finally(() => { checking = false; });
+    };
+
+    // Start checking after 1 second
+    setTimeout(checkStatus, 1000);
+}
+
+function fetchTestCases(projectUuid) {
+    // Fetch test cases from API
+    fetch(`/project/${projectUuid}/test-cases/`, {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        _timeoutMs: 30000,
+        _retries: 1
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.data) {
+            // Handle dataframe format: data.data.rows contains array of test cases
+            const testCases = data.data.rows || [];
+            displayTestCases(testCases);
+        } else {
+            console.error('Error fetching test cases:', data.message);
+            displayTestCases([]);
+            showNotification('error', 'Lỗi!', data.message || 'Không thể tải test cases.');
+        }
+    })
+    .catch(error => {
+        console.error('Error fetching test cases:', error);
+        displayTestCases([]);
+        showNotification('error', 'Lỗi!', 'Không thể tải test cases từ server.');
+    });
+}
+
+function displayTestCases(testCases) {
+    // Hide processing container and show results
+    document.getElementById('testCaseProcessingContainer').style.display = 'none';
+    document.getElementById('testCaseResultsContainer').style.display = 'block';
+
+    const tbody = document.getElementById('testCasesTableBody');
+    tbody.innerHTML = '';
+
+    if (!testCases || testCases.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" class="text-center text-muted">Không có test cases nào được tạo.</td>
+            </tr>
+        `;
+        document.getElementById('testCasesCount').textContent = 'Tổng: 0 test cases';
+        return;
+    }
+
+    testCases.forEach((testCase, index) => {
+        const row = document.createElement('tr');
+        const priorityClass = testCase.priority === 'High' ? 'danger' : 
+                             testCase.priority === 'Medium' ? 'warning' : 'info';
+        const statusClass = testCase.status === 'Pass' ? 'success' : 
+                           testCase.status === 'Fail' ? 'danger' : 'secondary';
+
+        // Truncate description if too long
+        const description = testCase.description || 'N/A';
+        const shortDescription = description.length > 100 ? description.substring(0, 100) + '...' : description;
+
+        row.innerHTML = `
+            <td>${index + 1}</td>
+            <td><code>${testCase.test_case_id || `TC-${String(index + 1).padStart(3, '0')}`}</code></td>
+            <td><strong>${testCase.test_case_name || 'N/A'}</strong></td>
+            <td title="${description}">${shortDescription}</td>
+            <td><span class="badge bg-${priorityClass}">${testCase.priority || 'Medium'}</span></td>
+            <td><span class="badge bg-${statusClass}">${testCase.status || 'Pending'}</span></td>
+            <td>
+                <button class="btn btn-sm btn-outline-primary" onclick="viewTestCaseDetails('${testCase.test_case_id || index}')">
+                    <i class="bi bi-eye"></i> Xem
+                </button>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+
+    document.getElementById('testCasesCount').textContent = `Tổng: ${testCases.length} test cases`;
+}
+
+function refreshTestCases() {
+    const projectUuid = '{{ project.uuid }}';
+    const btn = document.getElementById('refreshTestCasesBtn');
+    const originalHtml = btn.innerHTML;
+    btn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> Đang tải...';
+    btn.disabled = true;
+    
+    fetchTestCases(projectUuid);
+    
+    setTimeout(() => {
+        btn.innerHTML = originalHtml;
+        btn.disabled = false;
+        showNotification('success', 'Thành công!', 'Đã làm mới danh sách test cases.');
+    }, 1000);
+}
+
+function viewTestCaseDetails(testCaseId) {
+    // TODO: Implement test case details modal
+    showNotification('info', 'Thông tin', `Xem chi tiết test case: ${testCaseId}`);
 }
 
 function loadSections() {

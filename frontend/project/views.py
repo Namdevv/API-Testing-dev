@@ -5,6 +5,7 @@ import re
 import threading
 import time
 import uuid
+from urllib.parse import quote
 
 # Third-party imports
 import requests
@@ -59,7 +60,7 @@ PROJECT_ALL_ENDPOINT = f"{AGENT_API_BASE_URL}/agent-service/agent/api/project/al
 # API Status Configuration
 API_STATUS_CACHE_TIMEOUT = 60  # seconds - Cache for 30 seconds as requested
 API_CONNECTION_TIMEOUT = 5     # seconds - Reduced for faster response
-API_REQUEST_TIMEOUT = 60       # seconds
+API_REQUEST_TIMEOUT = 300       # seconds
 
 # Global variable to cache API status
 _api_status_cache = {
@@ -104,17 +105,20 @@ def call_file_upload_api(file_obj, user=None, project=None):
         client = get_minio_client()
 
         # Create object name in structure: username/projectname/filename
+        # Sử dụng quote để encode URL đúng chuẩn (xử lý khoảng trắng và ký tự đặc biệt)
         if user and project:
-            username = user.username.replace(' ', '_')
-            project_name = project.project_name.replace(' ', '_')
-            file_name = file_obj.name.replace(' ', '_')
+            # Encode từng phần riêng biệt để giữ nguyên cấu trúc thư mục với dấu "/"
+            username = quote(user.username, safe='')
+            project_name = quote(project.project_name, safe='')
+            file_name = quote(file_obj.name, safe='')
             object_name = f"{username}/{project_name}/{file_name}"
         else:
             # Fallback if no user/project info
             file_name = file_obj.name
             file_extension = file_name.split('.')[-1] if '.' in file_name else ''
             base_name = file_name.rsplit('.', 1)[0] if '.' in file_name else file_name
-            base_name = base_name.replace(' ', '_')
+            # Encode base_name để xử lý khoảng trắng và ký tự đặc biệt
+            base_name = quote(base_name, safe='')
             timestamp = str(int(time.time()))
             object_name = f"{base_name}_{timestamp}.{file_extension}" if file_extension else f"{base_name}_{timestamp}"
 
@@ -452,7 +456,7 @@ def call_api_with_retry(url, method='GET', headers=None, json_data=None, max_ret
     return False, None, f"API call failed after {max_retries + 1} attempts: {str(last_exception)}"
 
 
-def call_docs_preprocessing(doc_url, project_id):
+def call_docs_preprocessing(doc_url, project_id, doc_name=None):
     """Gọi API docs preprocessing với format mới và error handling cải tiến"""
     # Check API server status first
     api_status, error_message = check_api_server_status()
@@ -463,10 +467,29 @@ def call_docs_preprocessing(doc_url, project_id):
         raise Exception(user_friendly_error)
 
     try:
+        # Sử dụng doc_name gốc nếu được truyền vào, nếu không thì lấy từ URL
+        if not doc_name:
+            from urllib.parse import urlparse, unquote
+            parsed_url = urlparse(doc_url)
+            doc_name = os.path.basename(parsed_url.path)
+            # Decode URL để lấy tên file gốc nếu có
+            doc_name = unquote(doc_name)
+        
         payload = {
+            "doc_name": doc_name,  # Tên file gốc không qua xử lý
             "doc_url": doc_url,
-            "project_id": str(project_id)
+            "lang": "en",
+            "project_id": str(project_id),
         }
+
+        # Debug: In request body
+        if DEBUG:
+            import json
+            print(f"=== DOCS PREPROCESSING REQUEST BODY ===")
+            print(f"Endpoint: {DOCS_PREPROCESSING_ENDPOINT}")
+            print(f"Request Body (JSON):")
+            print(json.dumps(payload, indent=2, ensure_ascii=False))
+            print(f"======================================")
 
         # Gửi POST request với link document
         headers = {
@@ -494,6 +517,7 @@ def call_docs_preprocessing(doc_url, project_id):
             print(f"=== DOCS PREPROCESSING ERROR ===")
             print(f"Error: {str(e)}")
             print(f"Doc URL: {doc_url}")
+            print(f"Doc Name: {doc_name}")
             print(f"Project ID: {project_id}")
             print(f"===============================")
         raise Exception(f"Lỗi xử lý document: {str(e)}")
@@ -1165,9 +1189,13 @@ def start_ai_processing(request, project_uuid):
                     print(f"Final doc_url: {doc_url}")
                     print(f"===========================")
 
+                # Sử dụng tên file gốc không qua xử lý
+                original_doc_name = document.original_filename if hasattr(document, 'original_filename') and document.original_filename else None
+                
                 api_response = call_docs_preprocessing(
                     doc_url=doc_url,
-                    project_id=project.uuid
+                    project_id=project.uuid,
+                    doc_name=original_doc_name,
                 )
 
                 # Lưu API response
@@ -2114,5 +2142,225 @@ def select_fr_info(request, project_uuid):
             'message': f'Unexpected error: {str(e)}'
         }, status=500)
 
-        return render(request, 'project/main/section_selection.html', context)
+
+# Test Case Generation Endpoints
+@login_required
+@require_http_methods(["POST"])
+def generate_test_cases(request, project_uuid):
+    """Start test case generation process"""
+    project = get_object_or_404(UserProject, uuid=project_uuid, user=request.user)
+    
+    try:
+        # TODO: Call actual API endpoint when ready
+        # For now, just return success to start the process
+        # The status endpoint will handle the actual generation simulation
+        
+        # Initialize start time in session
+        import time as time_module
+        cache_key = f'test_case_gen_start_{project_uuid}'
+        request.session[cache_key] = time_module.time()
+        request.session.save()
+        
+        if DEBUG:
+            print(f"=== GENERATE TEST CASES ===")
+            print(f"Project UUID: {project_uuid}")
+            print(f"Start time initialized: {request.session[cache_key]}")
+            print(f"===========================")
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Test case generation started successfully'
+        })
+        
+    except Exception as e:
+        if DEBUG:
+            print(f"=== GENERATE TEST CASES ERROR ===")
+            print(f"Error: {str(e)}")
+            print(f"================================")
+        return JsonResponse({
+            'success': False,
+            'message': f'Unexpected error: {str(e)}'
+        }, status=500)
+
+
+@login_required
+@require_http_methods(["GET"])
+def check_test_case_status(request, project_uuid):
+    """Check the status of test case generation"""
+    project = get_object_or_404(UserProject, uuid=project_uuid, user=request.user)
+    
+    try:
+        # TODO: Call actual API endpoint when ready
+        # For now, simulate processing and completion
+        
+        # Simulate processing time (5-10 seconds)
+        import time as time_module
+        
+        # Check if we have a stored start time for this project
+        cache_key = f'test_case_gen_start_{project_uuid}'
+        if cache_key not in request.session:
+            request.session[cache_key] = time_module.time()
+            request.session.save()
+        
+        start_time = request.session.get(cache_key, time_module.time())
+        elapsed = time_module.time() - start_time
+        
+        # Simulate completion after 8 seconds
+        if elapsed < 8:
+            return JsonResponse({
+                'status': 'processing',
+                'message': f'AI đang tạo test cases... ({int(elapsed)}s)',
+                'progress': min(int((elapsed / 8) * 100), 95)
+            })
+        else:
+            # Mark as completed
+            if cache_key in request.session:
+                del request.session[cache_key]
+                request.session.save()
+            
+            return JsonResponse({
+                'status': 'completed',
+                'message': 'Test case generation completed successfully',
+                'test_cases': None  # Will be fetched separately
+            })
+            
+    except Exception as e:
+        if DEBUG:
+            print(f"=== CHECK TEST CASE STATUS ERROR ===")
+            print(f"Error: {str(e)}")
+            print(f"===================================")
+        return JsonResponse({
+            'status': 'error',
+            'message': f'Unexpected error: {str(e)}'
+        }, status=500)
+
+
+@login_required
+@require_http_methods(["GET"])
+def get_test_cases(request, project_uuid):
+    """Get generated test cases as dataframe (JSON format)"""
+    project = get_object_or_404(UserProject, uuid=project_uuid, user=request.user)
+    
+    try:
+        # TODO: Call actual API endpoint when ready
+        # For now, return fake dataframe data
+        
+        # Simulate dataframe structure: columns and rows
+        fake_test_cases = [
+            {
+                'test_case_id': 'TC-001',
+                'test_case_name': 'Login với username và password hợp lệ',
+                'description': 'Kiểm tra đăng nhập thành công với thông tin đăng nhập hợp lệ',
+                'priority': 'High',
+                'status': 'Pending',
+                'functional_requirement': 'FR-001: User Authentication',
+                'preconditions': 'User đã đăng ký tài khoản',
+                'test_steps': '1. Mở trang đăng nhập\n2. Nhập username\n3. Nhập password\n4. Click nút Login',
+                'expected_result': 'Đăng nhập thành công, chuyển đến trang dashboard'
+            },
+            {
+                'test_case_id': 'TC-002',
+                'test_case_name': 'Login với password sai',
+                'description': 'Kiểm tra đăng nhập thất bại khi nhập sai password',
+                'priority': 'High',
+                'status': 'Pending',
+                'functional_requirement': 'FR-001: User Authentication',
+                'preconditions': 'User đã đăng ký tài khoản',
+                'test_steps': '1. Mở trang đăng nhập\n2. Nhập username hợp lệ\n3. Nhập password sai\n4. Click nút Login',
+                'expected_result': 'Hiển thị thông báo lỗi "Mật khẩu không đúng"'
+            },
+            {
+                'test_case_id': 'TC-003',
+                'test_case_name': 'Tạo mới project',
+                'description': 'Kiểm tra tạo project mới thành công',
+                'priority': 'Medium',
+                'status': 'Pending',
+                'functional_requirement': 'FR-002: Project Management',
+                'preconditions': 'User đã đăng nhập',
+                'test_steps': '1. Click nút "Tạo Project"\n2. Nhập tên project\n3. Nhập mô tả\n4. Click "Lưu"',
+                'expected_result': 'Project được tạo thành công và hiển thị trong danh sách'
+            },
+            {
+                'test_case_id': 'TC-004',
+                'test_case_name': 'Upload document PDF',
+                'description': 'Kiểm tra upload file PDF thành công',
+                'priority': 'Medium',
+                'status': 'Pending',
+                'functional_requirement': 'FR-003: Document Upload',
+                'preconditions': 'User đã đăng nhập và có project',
+                'test_steps': '1. Chọn project\n2. Click "Upload Document"\n3. Chọn file PDF\n4. Click "Upload"',
+                'expected_result': 'File được upload thành công và hiển thị trong danh sách documents'
+            },
+            {
+                'test_case_id': 'TC-005',
+                'test_case_name': 'Xóa document',
+                'description': 'Kiểm tra xóa document thành công',
+                'priority': 'Low',
+                'status': 'Pending',
+                'functional_requirement': 'FR-003: Document Upload',
+                'preconditions': 'User đã upload document',
+                'test_steps': '1. Chọn document cần xóa\n2. Click nút "Xóa"\n3. Xác nhận xóa',
+                'expected_result': 'Document được xóa khỏi danh sách'
+            },
+            {
+                'test_case_id': 'TC-006',
+                'test_case_name': 'Chọn sections để phân tích',
+                'description': 'Kiểm tra chọn sections thành công',
+                'priority': 'High',
+                'status': 'Pending',
+                'functional_requirement': 'FR-004: Section Selection',
+                'preconditions': 'Document đã được AI xử lý',
+                'test_steps': '1. Xem danh sách sections\n2. Chọn các sections cần phân tích\n3. Click "Save Selection"',
+                'expected_result': 'Sections được lưu và hiển thị đã chọn'
+            },
+            {
+                'test_case_id': 'TC-007',
+                'test_case_name': 'Chọn Functional Requirements',
+                'description': 'Kiểm tra chọn FR thành công',
+                'priority': 'High',
+                'status': 'Pending',
+                'functional_requirement': 'FR-005: FR Selection',
+                'preconditions': 'Sections đã được chọn',
+                'test_steps': '1. Xem danh sách FR\n2. Chọn các FR cần thiết\n3. Click "Choose FR Selections"',
+                'expected_result': 'FR được lưu và có thể tiếp tục bước tiếp theo'
+            },
+            {
+                'test_case_id': 'TC-008',
+                'test_case_name': 'Xem danh sách test cases',
+                'description': 'Kiểm tra hiển thị danh sách test cases sau khi AI tạo',
+                'priority': 'Medium',
+                'status': 'Pending',
+                'functional_requirement': 'FR-006: Test Case Display',
+                'preconditions': 'AI đã tạo test cases',
+                'test_steps': '1. Chờ AI xử lý xong\n2. Xem bảng test cases',
+                'expected_result': 'Hiển thị đầy đủ thông tin test cases trong bảng'
+            }
+        ]
+        
+        if DEBUG:
+            print(f"=== GET TEST CASES ===")
+            print(f"Project UUID: {project_uuid}")
+            print(f"Returning {len(fake_test_cases)} test cases")
+            print(f"=====================")
+        
+        # Return as dataframe-like structure
+        return JsonResponse({
+            'success': True,
+            'data': {
+                'columns': ['test_case_id', 'test_case_name', 'description', 'priority', 'status', 
+                           'functional_requirement', 'preconditions', 'test_steps', 'expected_result'],
+                'rows': fake_test_cases,
+                'count': len(fake_test_cases)
+            }
+        })
+        
+    except Exception as e:
+        if DEBUG:
+            print(f"=== GET TEST CASES ERROR ===")
+            print(f"Error: {str(e)}")
+            print(f"===========================")
+        return JsonResponse({
+            'success': False,
+            'message': f'Unexpected error: {str(e)}'
+        }, status=500)
 
