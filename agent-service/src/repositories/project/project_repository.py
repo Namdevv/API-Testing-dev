@@ -7,7 +7,7 @@ from pydantic import (
 )
 from sqlmodel import Field, Session, SQLModel, select
 
-from src.settings import get_engine, get_now_vn
+from src.settings import get_db_engine, get_now_vn
 
 
 class ProjectRepository(SQLModel, table=True):
@@ -62,7 +62,7 @@ class ProjectRepository(SQLModel, table=True):
         Returns:
             ProjectRepository: The instance added to the database.
         """
-        with Session(get_engine()) as session:
+        with Session(get_db_engine()) as session:
             session.add(self)
             session.commit()
             session.refresh(self)
@@ -79,7 +79,7 @@ class ProjectRepository(SQLModel, table=True):
         Returns:
             bool: True if the project exists, False otherwise.
         """
-        session = session or Session(get_engine())
+        session = session or Session(get_db_engine())
         with session:
             project = session.get(cls, project_id)
             return project is not None
@@ -95,7 +95,7 @@ class ProjectRepository(SQLModel, table=True):
         Returns:
             List[ProjectRepository]: A list of all Project instances in the database.
         """
-        session = session or Session(get_engine())
+        session = session or Session(get_db_engine())
         with session:
             projects = session.exec(select(cls).where(cls.user_id == user_id)).all()
         return projects
@@ -110,7 +110,7 @@ class ProjectRepository(SQLModel, table=True):
         Returns:
             bool: True if deletion was successful, False otherwise.
         """
-        session = session or Session(get_engine())
+        session = session or Session(get_db_engine())
         with session:
             project = session.get(cls, project_id)
             if project:
@@ -131,7 +131,7 @@ class ProjectRepository(SQLModel, table=True):
         Returns:
             bool: True if update was successful, False otherwise.
         """
-        session = session or Session(get_engine())
+        session = session or Session(get_db_engine())
         with session:
             project = session.get(cls, project_id)
             if project:

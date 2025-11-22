@@ -9,7 +9,7 @@ from src import repositories
 from src.common.common import split_by_size
 from src.common.preprocessing import section_preprocessing
 from src.models import DocsPreProcessingStateModel
-from src.settings import get_engine
+from src.settings import get_db_engine
 
 
 class DocumentProcessingNode(BaseModel):
@@ -35,7 +35,7 @@ class DocumentProcessingNode(BaseModel):
         )
         doc_id = doc_metadata_repo.doc_id
 
-        with Session(get_engine()) as session:
+        with Session(get_db_engine()) as session:
             session.add(doc_metadata_repo)
             session.commit()
 

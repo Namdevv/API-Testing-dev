@@ -9,7 +9,7 @@ from sqlalchemy import Column
 from sqlmodel import Field, Session, SQLModel
 
 from src.base.service.base_embedding_service import BaseEmbeddingService
-from src.settings import EMBEDDING_DIM, get_engine
+from src.settings import EMBEDDING_DIM, get_db_engine
 
 
 class DocumentContentRepository(SQLModel, table=True):
@@ -75,7 +75,7 @@ class DocumentContentRepository(SQLModel, table=True):
         for i, item in enumerate(data):
             item.vector = vectors[i]
 
-        with Session(get_engine()) as session:
+        with Session(get_db_engine()) as session:
             session.add_all(data)
             session.commit()
             for record in data:

@@ -9,7 +9,7 @@ from sqlmodel import Field, Session, SQLModel, select
 
 from src import repositories
 from src.repositories.project.project_repository import ProjectRepository
-from src.settings import get_engine, get_now_vn
+from src.settings import get_db_engine, get_now_vn
 
 
 class DocumentMetadataRepository(SQLModel, table=True):
@@ -76,7 +76,7 @@ class DocumentMetadataRepository(SQLModel, table=True):
     def get_by_project_id(
         cls, project_id: str, session: Optional[Session] = None
     ) -> list["DocumentMetadataRepository"]:
-        session = session or Session(get_engine())
+        session = session or Session(get_db_engine())
         with session:
             documents = session.exec(
                 select(repositories.DocumentMetadataRepository).where(
@@ -87,7 +87,7 @@ class DocumentMetadataRepository(SQLModel, table=True):
 
     @classmethod
     def delete_by_id(cls, doc_id: str, session: Optional[Session] = None) -> bool:
-        session = session or Session(get_engine())
+        session = session or Session(get_db_engine())
         with session:
             document = session.get(repositories.DocumentMetadataRepository, doc_id)
             document_contents = session.exec(
@@ -112,7 +112,7 @@ class DocumentMetadataRepository(SQLModel, table=True):
         document_metadata_repos: list["DocumentMetadataRepository"],
         session: Optional[Session] = None,
     ):
-        session = session or Session(get_engine())
+        session = session or Session(get_db_engine())
         with session:
             for document_metadata in document_metadata_repos:
                 session.add(document_metadata)

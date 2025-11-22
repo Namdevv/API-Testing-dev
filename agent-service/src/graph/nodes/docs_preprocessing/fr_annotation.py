@@ -11,7 +11,7 @@ from src import repositories
 from src.base.service.base_agent_service import BaseAgentService
 from src.cache.cache_func_wrapper import cache_func_wrapper
 from src.enums.enums import LanguageEnum
-from src.settings import get_engine
+from src.settings import get_db_engine
 
 
 class FrAnnotationNode(BaseAgentService):
@@ -87,7 +87,7 @@ class FrAnnotationNode(BaseAgentService):
         project_id = state.project_id
 
         grouped_frs = {}
-        with Session(get_engine()) as session:
+        with Session(get_db_engine()) as session:
             if not repositories.ProjectRepository.is_exist(
                 project_id=project_id, session=session
             ):
