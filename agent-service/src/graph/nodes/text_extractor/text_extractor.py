@@ -103,7 +103,7 @@ class TextExtractorNode(BaseAgentService):
         result = {"messages": [AIMessage(content=text)]}
 
         # add doc_name if state has no doc_name
-        if doc_name:
+        if not doc_name:
             result["doc_name"] = doc_name
 
         return result
