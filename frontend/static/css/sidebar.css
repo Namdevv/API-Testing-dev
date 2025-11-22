@@ -143,6 +143,19 @@
     align-items: center;
 }
 
+/* Hide individual project items when collapsed, keep only "All Projects" */
+.sidebar-chatgpt.collapsed .nav-item.project-item,
+.sidebar-chatgpt.collapsed .project-divider {
+    display: none !important;
+}
+
+/* Keep "All Projects" visible when collapsed */
+.sidebar-chatgpt.collapsed .nav-item.all-projects-link {
+    display: flex !important;
+    justify-content: center;
+    align-items: center;
+}
+
 .sidebar-chatgpt.collapsed .add-btn-header {
     display: none;
 }

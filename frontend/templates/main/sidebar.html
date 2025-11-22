@@ -60,7 +60,7 @@
         
         <ul class="nav nav-pills flex-column">
             {% for project in recent_projects %}
-            <li class="nav-item">
+            <li class="nav-item project-item">
                 <a href="{% url 'project_detail_by_uuid' project_uuid=project.uuid %}" 
                    class="nav-link">
                     <i class="fa fa-folder"></i>
@@ -69,9 +69,9 @@
             </li>
             {% endfor %}
             {% if recent_projects %}
-            <li><hr class="dropdown-divider"></li>
+            <li class="project-divider"><hr class="dropdown-divider"></li>
             {% endif %}
-            <li class="nav-item">
+            <li class="nav-item all-projects-link">
                 <a href="{% url 'project_list' %}" class="nav-link" data-tooltip="All Projects">
                     <i class="fa fa-list"></i>
                     <span>All Projects</span>
