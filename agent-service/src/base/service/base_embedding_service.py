@@ -1,11 +1,7 @@
-import logging
 from typing import Optional
 
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from pydantic import Field, model_validator
-
-from src.base.service.base_multi_api_tokens import BaseMultiApiTokens
-from src.enums.enums import ModelTypeEnum
 
 
 class BaseEmbeddingService(GoogleGenerativeAIEmbeddings):

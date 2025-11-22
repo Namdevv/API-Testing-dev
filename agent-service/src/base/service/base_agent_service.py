@@ -6,15 +6,14 @@ from typing import List, Optional, Union
 from langchain.messages import AIMessage, AnyMessage, HumanMessage, SystemMessage
 from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAI
 from langchain_ollama import OllamaLLM
-from pydantic import Field, model_validator, validate_call
+from pydantic import BaseModel, Field, model_validator, validate_call
 
-from src.base.service.base_multi_api_tokens import BaseMultiApiTokens
 from src.common.common import split_by_size
 from src.enums.enums import LanguageEnum, ModelTypeEnum
-from src.settings import ENVIRONMENT, GOOGLE_API_KEYS, OLLAMA_BASE_URL
+from src.settings import ENVIRONMENT, OLLAMA_BASE_URL
 
 
-class BaseAgentService(BaseMultiApiTokens):
+class BaseAgentService(BaseModel):
     llm_model: str = Field(default="gemini-2.0-flash", min_length=5, max_length=100)
 
     llm_temperature: Optional[float] = Field(
@@ -47,7 +46,7 @@ class BaseAgentService(BaseMultiApiTokens):
     model_type: str = ModelTypeEnum.embedding.value
 
     # Private attributes with type hints
-    _agents: list[Union[ChatGoogleGenerativeAI, GoogleGenerativeAI, OllamaLLM]]
+    _agent: Union[ChatGoogleGenerativeAI, GoogleGenerativeAI, OllamaLLM]
     _system_prompts: dict[LanguageEnum, SystemMessage]
     _language: LanguageEnum = LanguageEnum.EN
 
@@ -66,7 +65,7 @@ class BaseAgentService(BaseMultiApiTokens):
             "top_k": self.llm_top_k,
         }
 
-        llms: list[Union[ChatGoogleGenerativeAI, GoogleGenerativeAI, OllamaLLM]] = []
+        llm: Union[ChatGoogleGenerativeAI, GoogleGenerativeAI, OllamaLLM]
 
         model_type = self.llm_model.split("-")[0]
 
@@ -74,28 +73,20 @@ class BaseAgentService(BaseMultiApiTokens):
             _model_params = model_params.copy()
             _model_params["base_url"] = OLLAMA_BASE_URL
 
-            llms.append(
-                OllamaLLM(
-                    **_model_params,
-                )
+            llm = OllamaLLM(
+                **_model_params,
             )
+
         elif model_type in ["gemini", "gemma"]:
-            model_params["transport"] = "rest"
-
-            for google_api_key in GOOGLE_API_KEYS:
-                _model_params = model_params.copy()
-                _model_params["google_api_key"] = google_api_key
-
-                llms.append(models[model_type](**_model_params))
+            _model_params = model_params.copy()
+            llm = models[model_type](**_model_params)
         else:
             raise ValueError(f"Unsupported model type: {model_type}")
 
-        self._reset_round_robin()
-
         if self.tools:
-            self._agents = [llm.bind_tools(self.tools) for llm in llms]
+            self._agent = llm.bind_tools(self.tools)
         else:
-            self._agents = llms
+            self._agent = llm
 
         self.load_system_prompt()
         return self
@@ -103,7 +94,7 @@ class BaseAgentService(BaseMultiApiTokens):
     def _get_agent(
         self,
     ) -> Union[ChatGoogleGenerativeAI, GoogleGenerativeAI, OllamaLLM]:
-        return self._agents[self._get_next_model_index()]
+        return self._agent
 
     @validate_call
     def load_system_prompt(self):
