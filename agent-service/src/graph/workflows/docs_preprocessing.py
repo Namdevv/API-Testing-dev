@@ -46,26 +46,31 @@ class DocsPreprocessingWorkflow(BaseModel):
             nodes.DocumentNormalizationNode(),
         )
         self.workflow.add_node(
-            "document_processing",
-            nodes.DocumentProcessingNode(),
+            "document_chunking",
+            nodes.DocumentChunkingNode(),
         )
         self.workflow.add_node(
             "text_extractor",
             nodes.TextExtractorNode(),
+        )
+        self.workflow.add_node(
+            "document_description",
+            nodes.DocumentDescriptionNode(),
         )
 
     def _setup_edges(self):
         """Configure all edges and entry point"""
         self.workflow.set_entry_point("text_extractor")
         self.workflow.add_edge("text_extractor", "document_normalization")
-        self.workflow.add_edge("document_normalization", "document_processing")
-        self.workflow.add_edge("document_processing", END)
+        self.workflow.add_edge("document_normalization", "document_description")
+        self.workflow.add_edge("document_description", "document_chunking")
+        self.workflow.add_edge("document_chunking", END)
 
     def get_graph(self):
         """Get the compiled graph"""
         return self.graph
 
-    def invoke(self, input_data):
+    def invoke(self, input_data) -> DocsPreProcessingStateModel:
         """Execute the agent workflow"""
         if not self.graph:
             raise ValueError(
