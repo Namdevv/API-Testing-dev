@@ -66,13 +66,18 @@ function nextStep() {
             startAIProcessing('{{ project.uuid }}');
         }, 500);
     } else if (currentStep === 2) {
-        // Check if AI processing is completed
+        // Check if both AI processing and FR extraction are completed
         const aiStatus = document.getElementById('aiStatusText').textContent;
-        if (aiStatus.includes('Completed')) {
+        const isAIComplete = aiStatus.includes('Completed') || window.aiProcessingComplete;
+        const isFRComplete = window.frExtractionComplete || aiStatus.includes('FR Extraction Completed');
+        
+        if (isAIComplete && isFRComplete) {
             setStep(3);
             loadSections();
-        } else {
+        } else if (!isAIComplete) {
             showNotification('warning', 'Cảnh báo', 'Vui lòng chờ AI xử lý hoàn thành.');
+        } else if (!isFRComplete) {
+            showNotification('warning', 'Cảnh báo', 'Vui lòng chờ trích xuất Functional Requirements hoàn thành.');
         }
     } else if (currentStep === 3) {
         // Temporarily disabled check - allow next without validation
@@ -92,13 +97,20 @@ function prevStep() {
     }
 }
 
+// Initialize flags for tracking processing status
+window.aiProcessingComplete = false;
+window.frExtractionComplete = false;
+
 // init: mở bước theo query param ?step=, mặc định 1
 document.addEventListener("DOMContentLoaded", function() {
 const params = new URLSearchParams(window.location.search);
 const stepParam = parseInt(params.get('step'));
 if (!isNaN(stepParam) && stepParam >= 1 && stepParam <= totalSteps) {
     setStep(stepParam);
-    if (stepParam === 3) {
+    if (stepParam === 2) {
+        // If on step 2, check if we need to start AI processing or FR extraction
+        // This will be handled by startAIProcessing or checkAIStatusLoop
+    } else if (stepParam === 3) {
         loadSections();
     }
 } else {
@@ -204,11 +216,12 @@ function checkAIStatusLoop(projectUuid) {
                                 <i class="bi bi-check-circle"></i> Processing completed successfully!
                             </div>
                         `;
-                        // Auto navigate to step 3 with a full reload to refresh document doc_id state
-                         // Include fresh_analysis=1 to trigger FR analysis after AI processing
-                         setTimeout(() => {
-                             window.location.href = `/project/{{ project.uuid }}/?step=3&fresh_analysis=1`;
-                         }, 2000);
+                        // Store flag that AI processing is complete
+                        window.aiProcessingComplete = true;
+                        // Start FR extraction in step 2 instead of redirecting to step 3
+                        setTimeout(() => {
+                            extractFRInStep2(projectUuid);
+                        }, 1500);
                     }
                 }, 100);
             } else if (data.status === 'processing') {
@@ -242,6 +255,118 @@ function checkAIStatusLoop(projectUuid) {
 
     // Start checking after 1 second
     setTimeout(checkStatus, 1000);
+}
+
+// FR Extraction Functions for Step 2
+function extractFRInStep2(projectUuid) {
+    // Update UI to show FR extraction
+    document.getElementById('aiStatusText').textContent = 'Đang trích xuất Functional Requirements...';
+    document.getElementById('aiStatusMessage').textContent = 'AI đang phân tích và trích xuất các Functional Requirements từ documents...';
+    document.getElementById('aiProgressBar').style.width = '0%';
+
+    // Realistic progress stages for FR extraction
+    const progressStages = [
+        { progress: 10, message: 'Đang khởi tạo quá trình trích xuất FR...', duration: 2000 },
+        { progress: 25, message: 'Đang phân tích table of contents...', duration: 3000 },
+        { progress: 40, message: 'Đang nhóm các Functional Requirements...', duration: 4000 },
+        { progress: 55, message: 'Đang xác định FR trùng lặp...', duration: 3000 },
+        { progress: 70, message: 'Đang tạo mapping FR với documents...', duration: 4000 },
+        { progress: 85, message: 'Đang hoàn thiện FR annotations...', duration: 3000 },
+        { progress: 95, message: 'Sắp hoàn thành...', duration: 2000 }
+    ];
+
+    let currentStage = 0;
+
+    function updateProgress() {
+        if (currentStage < progressStages.length) {
+            const stage = progressStages[currentStage];
+            document.getElementById('aiProgressBar').style.width = stage.progress + '%';
+            document.getElementById('aiStatusMessage').textContent = stage.message;
+
+            currentStage++;
+            setTimeout(updateProgress, stage.duration);
+        } else {
+            // Keep at 95% until actual completion
+            document.getElementById('aiProgressBar').style.width = '95%';
+            document.getElementById('aiStatusMessage').textContent = 'Đang chờ hoàn thành trích xuất FR...';
+        }
+    }
+
+    // Start the staged progress
+    setTimeout(updateProgress, 500);
+
+    // Call the backend API endpoint with analyze=true
+    const apiUrl = `/project/${projectUuid}/annotate-fr/`;
+
+    console.log('Extracting FR in step 2 with analyze=true');
+
+    fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            'accept': 'application/json'
+        },
+        body: JSON.stringify({
+            lang: 'vi',
+            analyze: true  // Always use analyze=true in step 2
+        }),
+        _timeoutMs: 60000,
+        _retries: 1
+    })
+    .then(response => {
+        console.log('FR extraction API response status:', response.status);
+        return response.json();
+    })
+    .then(data => {
+        console.log('FR extraction API response data:', data);
+
+        if (data.success) {
+            // Gradually complete the progress bar
+            let finalProgress = 95;
+            const finalInterval = setInterval(() => {
+                finalProgress += 1;
+                document.getElementById('aiProgressBar').style.width = finalProgress + '%';
+                if (finalProgress >= 100) {
+                    clearInterval(finalInterval);
+                    document.getElementById('aiStatusText').textContent = 'FR Extraction Completed!';
+                    document.getElementById('aiStatusMessage').textContent = `Đã trích xuất thành công ${data.count || 0} Functional Requirements.`;
+                    document.getElementById('aiStatusIndicator').innerHTML = `
+                        <div class="alert alert-success">
+                            <i class="bi bi-check-circle"></i> FR extraction completed successfully!
+                        </div>
+                    `;
+                    
+                    // Store flag that FR extraction is complete
+                    window.frExtractionComplete = true;
+                    
+                    // Auto navigate to step 3 without fresh_analysis parameter
+                    setTimeout(() => {
+                        window.location.href = `/project/{{ project.uuid }}/?step=3`;
+                    }, 2000);
+                }
+            }, 100);
+        } else {
+            // Error handling
+            document.getElementById('aiStatusText').textContent = 'FR Extraction Error';
+            document.getElementById('aiStatusMessage').textContent = data.message || 'Error extracting Functional Requirements.';
+            document.getElementById('aiStatusIndicator').innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle"></i> ${data.message || 'Error extracting Functional Requirements.'}
+                </div>
+            `;
+        }
+    })
+    .catch(error => {
+        console.error('Error extracting FR:', error);
+        document.getElementById('aiStatusText').textContent = 'FR Extraction Error';
+        document.getElementById('aiStatusMessage').textContent = 'An error occurred while extracting Functional Requirements.';
+        document.getElementById('aiStatusIndicator').innerHTML = `
+            <div class="alert alert-danger">
+                <i class="bi bi-exclamation-triangle"></i> Failed to extract Functional Requirements: ${error.message}
+            </div>
+        `;
+    });
 }
 
 // Test Case Generation Functions
@@ -551,24 +676,13 @@ function loadFRAnnotations(analyzeOverride = null) {
     `;
 
     // Determine analyze parameter
-    let analyze = false; // Default to cached mode
+    // Default to cached mode since FR extraction is now done in step 2
+    let analyze = false;
 
-    // Check if fresh analysis is needed (e.g., after AI processing completion)
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('fresh_analysis') === '1') {
-        analyze = true;
-        console.log('Fresh analysis triggered after AI processing completion');
-        // Remove the parameter from URL to prevent re-analysis on refresh
-        const newUrl = window.location.href.replace('&fresh_analysis=1', '').replace('?fresh_analysis=1', '');
-        window.history.replaceState({}, document.title, newUrl);
-    }
-
-    // Check saved preference if no fresh analysis trigger
-    if (!urlParams.get('fresh_analysis')) {
-        const savedPreference = localStorage.getItem('fr_analyze_preference');
-        if (savedPreference !== null) {
-            analyze = JSON.parse(savedPreference);
-        }
+    // Check saved preference from toggle (if user wants to re-analyze)
+    const savedPreference = localStorage.getItem('fr_analyze_preference');
+    if (savedPreference !== null) {
+        analyze = JSON.parse(savedPreference);
     }
 
     // Call the backend API endpoint

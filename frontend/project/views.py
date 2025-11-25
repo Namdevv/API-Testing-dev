@@ -17,6 +17,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.core.files.base import ContentFile
+from django.core.paginator import Paginator
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -648,6 +649,7 @@ def project_list(request):
 
             context = {
                 'projects': [],
+                'paginator': None,
                 'api_count': 0,
                 'api_server_offline': True,
                 'error_message': error_message,
@@ -678,6 +680,7 @@ def project_list(request):
             messages.error(request, f"Không thể tải danh sách dự án: {error_msg}")
             context = {
                 'projects': [],
+                'paginator': None,
                 'api_count': 0,
                 'api_error': True,
                 'error_message': error_msg
@@ -749,8 +752,14 @@ def project_list(request):
                             print(f"Error creating project {project_name}: {str(e)}")
                         continue
 
+        # Pagination: 12 projects per page
+        paginator = Paginator(api_projects, 12)
+        page_number = request.GET.get('page', 1)
+        projects_page = paginator.get_page(page_number)
+
         context = {
-            'projects': api_projects,
+            'projects': projects_page,
+            'paginator': paginator,
             'api_count': len(api_projects),
             'api_server_online': True
         }
@@ -764,6 +773,7 @@ def project_list(request):
         messages.error(request, f"Lỗi hệ thống: {str(e)}")
         context = {
             'projects': [],
+            'paginator': None,
             'api_count': 0,
             'api_error': True,
             'error_message': str(e)

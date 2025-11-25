@@ -378,6 +378,7 @@
     flex-direction: column;
     align-items: center;
     padding: 0;
+    overflow-x: hidden !important;
 }
 
 .sidebar-chatgpt .nav-container::-webkit-scrollbar {
