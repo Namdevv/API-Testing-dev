@@ -13,6 +13,11 @@ document.getElementById('fileInput').addEventListener('change', function() {
         `;
         uploadBox.style.pointerEvents = 'none';
 
+        // Show global loading overlay
+        if (window.__loadingOverlay) {
+            window.__loadingOverlay.show();
+        }
+
         document.getElementById('uploadForm').submit();
     }
 });
@@ -32,6 +37,11 @@ document.getElementById('linkUploadForm').addEventListener('submit', function(e)
     const originalText = submitBtn.innerHTML;
     submitBtn.disabled = true;
     submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Processing...';
+
+    // Show global loading overlay
+    if (window.__loadingOverlay) {
+        window.__loadingOverlay.show();
+    }
 
     // Store original text for restoration if needed
     submitBtn.setAttribute('data-original-text', originalText);
@@ -539,52 +549,188 @@ function fetchTestCases(projectUuid) {
     });
 }
 
+// Store test cases globally for detail view
+let allTestCases = [];
+let currentTestCasesPage = 1;
+const TEST_CASES_PER_PAGE = 7;
+
 function displayTestCases(testCases) {
     // Hide processing container and show results
     document.getElementById('testCaseProcessingContainer').style.display = 'none';
     document.getElementById('testCaseResultsContainer').style.display = 'block';
 
+    // Store test cases globally
+    allTestCases = testCases || [];
+    
+    // Reset to first page
+    currentTestCasesPage = 1;
+
+    // Render table with pagination
+    renderTestCasesPage();
+}
+
+function renderTestCasesPage() {
     const tbody = document.getElementById('testCasesTableBody');
     tbody.innerHTML = '';
 
-    if (!testCases || testCases.length === 0) {
+    if (!allTestCases || allTestCases.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="7" class="text-center text-muted">Không có test cases nào được tạo.</td>
+                <td colspan="7" class="text-center text-muted py-4">
+                    <i class="bi bi-inbox" style="font-size: 2rem;"></i><br>
+                    Không có test cases nào được tạo.
+                </td>
             </tr>
         `;
-        document.getElementById('testCasesCount').textContent = 'Tổng: 0 test cases';
+        document.getElementById('testCasesCount').innerHTML = '<i class="bi bi-info-circle"></i> Tổng: <strong>0</strong> test cases';
+        document.getElementById('testCasesPaginationList').innerHTML = '';
         return;
     }
 
-    testCases.forEach((testCase, index) => {
-        const row = document.createElement('tr');
-        const priorityClass = testCase.priority === 'High' ? 'danger' : 
-                             testCase.priority === 'Medium' ? 'warning' : 'info';
-        const statusClass = testCase.status === 'Pass' ? 'success' : 
-                           testCase.status === 'Fail' ? 'danger' : 'secondary';
+    // Calculate pagination
+    const totalPages = Math.ceil(allTestCases.length / TEST_CASES_PER_PAGE);
+    const startIndex = (currentTestCasesPage - 1) * TEST_CASES_PER_PAGE;
+    const endIndex = Math.min(startIndex + TEST_CASES_PER_PAGE, allTestCases.length);
+    const currentPageTestCases = allTestCases.slice(startIndex, endIndex);
 
-        // Truncate description if too long
-        const description = testCase.description || 'N/A';
-        const shortDescription = description.length > 100 ? description.substring(0, 100) + '...' : description;
+    // Render current page test cases
+    currentPageTestCases.forEach((testCase, localIndex) => {
+        const row = document.createElement('tr');
+        const globalIndex = startIndex + localIndex;
+        
+        // Get category badge color
+        const category = testCase.test_category || 'N/A';
+        const categoryClass = category === 'Basic Validation' ? 'bg-primary' : 
+                             category === 'Business Logic' ? 'bg-success' : 'bg-secondary';
+        
+        // Get status code badge color
+        const statusCode = testCase.expected_statuscode || 'N/A';
+        const statusClass = statusCode === 200 ? 'bg-success' : 
+                           statusCode >= 400 && statusCode < 500 ? 'bg-warning' : 
+                           statusCode >= 500 ? 'bg-danger' : 'bg-secondary';
+        
+        // Truncate test case name if too long
+        const testCaseName = testCase.test_case_name || 'N/A';
+        const shortName = testCaseName.length > 80 ? testCaseName.substring(0, 80) + '...' : testCaseName;
+        
+        // Truncate endpoint if too long
+        const endpoint = testCase.endpoint || 'N/A';
+        const shortEndpoint = endpoint.length > 30 ? endpoint.substring(0, 30) + '...' : endpoint;
 
         row.innerHTML = `
-            <td>${index + 1}</td>
-            <td><code>${testCase.test_case_id || `TC-${String(index + 1).padStart(3, '0')}`}</code></td>
-            <td><strong>${testCase.test_case_name || 'N/A'}</strong></td>
-            <td title="${description}">${shortDescription}</td>
-            <td><span class="badge bg-${priorityClass}">${testCase.priority || 'Medium'}</span></td>
-            <td><span class="badge bg-${statusClass}">${testCase.status || 'Pending'}</span></td>
-            <td>
-                <button class="btn btn-sm btn-outline-primary" onclick="viewTestCaseDetails('${testCase.test_case_id || index}')">
-                    <i class="bi bi-eye"></i> Xem
+            <td class="text-center">${globalIndex + 1}</td>
+            <td><code class="text-primary">${testCase.test_case_id || `TC-${String(globalIndex + 1).padStart(3, '0')}`}</code></td>
+            <td><code class="text-info" title="${endpoint}">${shortEndpoint}</code></td>
+            <td title="${testCaseName}"><strong>${shortName}</strong></td>
+            <td><span class="badge ${categoryClass}">${category}</span></td>
+            <td class="text-center">
+                <span class="badge ${statusClass}">${statusCode}</span>
+            </td>
+            <td class="text-center">
+                <button class="btn btn-sm btn-outline-primary" onclick="viewTestCaseDetails(${globalIndex})" title="Xem chi tiết">
+                    <i class="bi bi-eye"></i> Details
                 </button>
             </td>
         `;
         tbody.appendChild(row);
     });
 
-    document.getElementById('testCasesCount').textContent = `Tổng: ${testCases.length} test cases`;
+    // Update count text
+    document.getElementById('testCasesCount').innerHTML = `
+        <i class="bi bi-info-circle"></i> 
+        Hiển thị <strong>${startIndex + 1}-${endIndex}</strong> / <strong>${allTestCases.length}</strong> test cases
+    `;
+
+    // Render pagination
+    renderTestCasesPagination(totalPages);
+}
+
+function renderTestCasesPagination(totalPages) {
+    const paginationList = document.getElementById('testCasesPaginationList');
+    paginationList.innerHTML = '';
+
+    if (totalPages <= 1) {
+        return; // Don't show pagination if only one page or less
+    }
+
+    // Previous button
+    const prevLi = document.createElement('li');
+    prevLi.className = `page-item ${currentTestCasesPage === 1 ? 'disabled' : ''}`;
+    prevLi.innerHTML = `
+        <a class="page-link" href="#" onclick="goToTestCasesPage(${currentTestCasesPage - 1}); return false;" aria-label="Previous">
+            <span aria-hidden="true">&laquo;</span>
+        </a>
+    `;
+    paginationList.appendChild(prevLi);
+
+    // Page numbers
+    const maxVisiblePages = 5;
+    let startPage = Math.max(1, currentTestCasesPage - Math.floor(maxVisiblePages / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+    
+    if (endPage - startPage < maxVisiblePages - 1) {
+        startPage = Math.max(1, endPage - maxVisiblePages + 1);
+    }
+
+    // First page
+    if (startPage > 1) {
+        const firstLi = document.createElement('li');
+        firstLi.className = 'page-item';
+        firstLi.innerHTML = `<a class="page-link" href="#" onclick="goToTestCasesPage(1); return false;">1</a>`;
+        paginationList.appendChild(firstLi);
+        
+        if (startPage > 2) {
+            const ellipsisLi = document.createElement('li');
+            ellipsisLi.className = 'page-item disabled';
+            ellipsisLi.innerHTML = `<span class="page-link">...</span>`;
+            paginationList.appendChild(ellipsisLi);
+        }
+    }
+
+    // Page range
+    for (let i = startPage; i <= endPage; i++) {
+        const pageLi = document.createElement('li');
+        pageLi.className = `page-item ${i === currentTestCasesPage ? 'active' : ''}`;
+        pageLi.innerHTML = `<a class="page-link" href="#" onclick="goToTestCasesPage(${i}); return false;">${i}</a>`;
+        paginationList.appendChild(pageLi);
+    }
+
+    // Last page
+    if (endPage < totalPages) {
+        if (endPage < totalPages - 1) {
+            const ellipsisLi = document.createElement('li');
+            ellipsisLi.className = 'page-item disabled';
+            ellipsisLi.innerHTML = `<span class="page-link">...</span>`;
+            paginationList.appendChild(ellipsisLi);
+        }
+        
+        const lastLi = document.createElement('li');
+        lastLi.className = 'page-item';
+        lastLi.innerHTML = `<a class="page-link" href="#" onclick="goToTestCasesPage(${totalPages}); return false;">${totalPages}</a>`;
+        paginationList.appendChild(lastLi);
+    }
+
+    // Next button
+    const nextLi = document.createElement('li');
+    nextLi.className = `page-item ${currentTestCasesPage === totalPages ? 'disabled' : ''}`;
+    nextLi.innerHTML = `
+        <a class="page-link" href="#" onclick="goToTestCasesPage(${currentTestCasesPage + 1}); return false;" aria-label="Next">
+            <span aria-hidden="true">&raquo;</span>
+        </a>
+    `;
+    paginationList.appendChild(nextLi);
+}
+
+function goToTestCasesPage(page) {
+    const totalPages = Math.ceil(allTestCases.length / TEST_CASES_PER_PAGE);
+    if (page < 1 || page > totalPages) {
+        return;
+    }
+    currentTestCasesPage = page;
+    renderTestCasesPage();
+    
+    // Scroll to top of table
+    document.getElementById('testCasesTable').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 function refreshTestCases() {
@@ -603,9 +749,77 @@ function refreshTestCases() {
     }, 1000);
 }
 
-function viewTestCaseDetails(testCaseId) {
-    // TODO: Implement test case details modal
-    showNotification('info', 'Thông tin', `Xem chi tiết test case: ${testCaseId}`);
+function viewTestCaseDetails(index) {
+    const testCase = allTestCases[index];
+    if (!testCase) {
+        showNotification('error', 'Lỗi', 'Không tìm thấy test case');
+        return;
+    }
+
+    // Populate modal with test case details
+    document.getElementById('testCaseDetailId').textContent = testCase.test_case_id || 'N/A';
+    document.getElementById('testCaseDetailName').textContent = testCase.test_case_name || 'N/A';
+    document.getElementById('testCaseDetailEndpoint').textContent = testCase.endpoint || 'N/A';
+    document.getElementById('testCaseDetailCategory').textContent = testCase.test_category || 'N/A';
+    document.getElementById('testCaseDetailStatus').textContent = testCase.expected_statuscode || 'N/A';
+    
+    // Format and display headers
+    const header = testCase.header || 'N/A';
+    const headerElement = document.getElementById('testCaseDetailHeader');
+    if (header !== 'N/A' && header) {
+        try {
+            // If header is already a string, try to parse it
+            const headerObj = typeof header === 'string' ? JSON.parse(header) : header;
+            const formatted = JSON.stringify(headerObj, null, 2);
+            headerElement.textContent = formatted;
+            headerElement.className = 'bg-light p-3 rounded border';
+        } catch (e) {
+            // If parsing fails, display as is
+            headerElement.textContent = typeof header === 'string' ? header : JSON.stringify(header, null, 2);
+            headerElement.className = 'bg-light p-3 rounded border';
+        }
+    } else {
+        headerElement.textContent = 'N/A';
+        headerElement.className = 'text-muted';
+    }
+    
+    // Format and display request body
+    const requestBody = testCase.request_body || 'N/A';
+    const requestBodyElement = document.getElementById('testCaseDetailRequestBody');
+    if (requestBody !== 'N/A') {
+        try {
+            const formatted = JSON.stringify(JSON.parse(requestBody), null, 2);
+            requestBodyElement.textContent = formatted;
+            requestBodyElement.className = 'bg-light p-3 rounded border';
+        } catch (e) {
+            requestBodyElement.textContent = requestBody;
+            requestBodyElement.className = 'bg-light p-3 rounded border';
+        }
+    } else {
+        requestBodyElement.textContent = 'N/A';
+        requestBodyElement.className = 'text-muted';
+    }
+    
+    // Format and display expected response
+    const expectedResponse = testCase.expected_response || 'N/A';
+    const expectedResponseElement = document.getElementById('testCaseDetailExpectedResponse');
+    if (expectedResponse !== 'N/A') {
+        try {
+            const formatted = JSON.stringify(JSON.parse(expectedResponse), null, 2);
+            expectedResponseElement.textContent = formatted;
+            expectedResponseElement.className = 'bg-light p-3 rounded border';
+        } catch (e) {
+            expectedResponseElement.textContent = expectedResponse;
+            expectedResponseElement.className = 'bg-light p-3 rounded border';
+        }
+    } else {
+        expectedResponseElement.textContent = 'N/A';
+        expectedResponseElement.className = 'text-muted';
+    }
+
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('testCaseDetailModal'));
+    modal.show();
 }
 
 function loadSections() {

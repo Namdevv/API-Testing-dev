@@ -57,6 +57,7 @@ PREPROCESSED_DOCUMENTS_DELETE_ENDPOINT = f"{AGENT_API_BASE_URL}/agent-service/ag
 # Project API endpoints
 PROJECT_CREATE_ENDPOINT = f"{AGENT_API_BASE_URL}/agent-service/agent/api/project/create"
 PROJECT_ALL_ENDPOINT = f"{AGENT_API_BASE_URL}/agent-service/agent/api/project/all"
+PROJECT_DELETE_ENDPOINT = f"{AGENT_API_BASE_URL}/agent-service/agent/api/project/delete/"
 
 # API Status Configuration
 API_STATUS_CACHE_TIMEOUT = 60  # seconds - Cache for 30 seconds as requested
@@ -876,8 +877,20 @@ def project_edit(request, project_uuid):
 
 @set_test_suites_show(True)
 @login_required
+@require_http_methods(["POST"])
 def project_delete(request, project_uuid):
     # This view will handle deleting a project via API
+    if DEBUG:
+        print(f"=== PROJECT DELETE DEBUG ===")
+        print(f"Request Method: {request.method}")
+        print(f"User: {request.user}")
+        print(f"User Authenticated: {request.user.is_authenticated}")
+        print(f"Project UUID: {project_uuid}")
+        print(f"CSRF Token Present: {'csrftoken' in request.COOKIES}")
+        print(f"POST Data: {request.POST}")
+        print(f"Headers: {dict(request.headers)}")
+        print(f"=============================")
+    
     try:
         delete_url = f"{AGENT_API_BASE_URL}/api/project/delete/{project_uuid}"
 
@@ -891,6 +904,12 @@ def project_delete(request, project_uuid):
             timeout=30,
             verify=False
         )
+
+        if DEBUG:
+            print(f"=== API DELETE RESPONSE ===")
+            print(f"Status Code: {response.status_code}")
+            print(f"Response: {response.text}")
+            print(f"===========================")
 
         if response.status_code == 200:
             # Delete from local database as well
@@ -1637,7 +1656,7 @@ def api_delete_project(request, project_id):
     """Xóa project qua API"""
     try:
         # Gọi API xóa project
-        delete_url = f"{AGENT_API_BASE_URL}/api/project/delete/{project_id}"
+        delete_url = f"{PROJECT_DELETE_ENDPOINT}{project_id}"
 
         headers = {
             'accept': 'application/json'
@@ -1649,6 +1668,12 @@ def api_delete_project(request, project_id):
             timeout=30,
             verify=False
         )
+
+        if DEBUG:
+            print(f"=== PROJECT DELETE RESPONSE ===")
+            print(f"Status Code: {response.status_code}")
+            print(f"Response: {response.text}")
+            print(f"=============================")
 
         if response.status_code == 200:
             return JsonResponse({
@@ -1869,15 +1894,17 @@ def get_fr_infors(request, project_uuid):
                 # Return cached data from DB
                 fr_list = []
                 for fr_obj in existing_frs:
-                    fr_list.append({
-                        'fr_info_id': str(fr_obj.fr_info_id),
-                        'fr_group': fr_obj.fr_group,
-                        'name': fr_obj.fr_group.split(':', 1)[1].strip() if ':' in fr_obj.fr_group else fr_obj.fr_group,
-                        'full_name': fr_obj.fr_group,
-                        'description': fr_obj.description,
-                        'is_selected': fr_obj.is_selected,
-                        'documents': []  # Document locations not stored in DB, could be enhanced later
-                    })
+                    # Only include FRs that start with 'm' (m-fr) instead of 'u' (u-fr)
+                    if fr_obj.fr_group.startswith('m-fr') or fr_obj.fr_group.startswith('m'):
+                        fr_list.append({
+                            'fr_info_id': str(fr_obj.fr_info_id),
+                            'fr_group': fr_obj.fr_group,
+                            'name': fr_obj.fr_group.split(':', 1)[1].strip() if ':' in fr_obj.fr_group else fr_obj.fr_group,
+                            'full_name': fr_obj.fr_group,
+                            'description': fr_obj.description,
+                            'is_selected': fr_obj.is_selected,
+                            'documents': []  # Document locations not stored in DB, could be enhanced later
+                        })
 
                 return JsonResponse({
                     'success': True,
@@ -1953,6 +1980,11 @@ def get_fr_infors(request, project_uuid):
 
                 for fr_item in fr_annotations:
                     fr_group = fr_item.get('fr_group', '')
+                    
+                    # Only process FRs that start with 'm' (m-fr) instead of 'u' (u-fr)
+                    if not (fr_group.startswith('m-fr') or fr_group.startswith('m')):
+                        continue
+                    
                     # For annotate-fr format, we don't have fr_id, so generate one from fr_group
                     fr_info_id_str = fr_item.get('fr_info_id', fr_item.get('fr_id', ''))
 
@@ -2245,114 +2277,187 @@ def get_test_cases(request, project_uuid):
     
     try:
         # TODO: Call actual API endpoint when ready
-        # For now, return fake dataframe data
+        # For now, return fake dataframe data matching the actual API response format
         
-        # Simulate dataframe structure: columns and rows
-        fake_test_cases = [
-            {
-                'test_case_id': 'TC-001',
-                'test_case_name': 'Login với username và password hợp lệ',
-                'description': 'Kiểm tra đăng nhập thành công với thông tin đăng nhập hợp lệ',
-                'priority': 'High',
-                'status': 'Pending',
-                'functional_requirement': 'FR-001: User Authentication',
-                'preconditions': 'User đã đăng ký tài khoản',
-                'test_steps': '1. Mở trang đăng nhập\n2. Nhập username\n3. Nhập password\n4. Click nút Login',
-                'expected_result': 'Đăng nhập thành công, chuyển đến trang dashboard'
+        # Simulate API response format
+        fake_api_response = {
+            "request_body": {
+                "userId": "usr_a1b2c3d4",
+                "productId": "prod_12345678",
+                "itemType": "PRODUCT",
+                "source": "PDP",
+                "notes": "Interested in the blue color."
             },
-            {
-                'test_case_id': 'TC-002',
-                'test_case_name': 'Login với password sai',
-                'description': 'Kiểm tra đăng nhập thất bại khi nhập sai password',
-                'priority': 'High',
-                'status': 'Pending',
-                'functional_requirement': 'FR-001: User Authentication',
-                'preconditions': 'User đã đăng ký tài khoản',
-                'test_steps': '1. Mở trang đăng nhập\n2. Nhập username hợp lệ\n3. Nhập password sai\n4. Click nút Login',
-                'expected_result': 'Hiển thị thông báo lỗi "Mật khẩu không đúng"'
-            },
-            {
-                'test_case_id': 'TC-003',
-                'test_case_name': 'Tạo mới project',
-                'description': 'Kiểm tra tạo project mới thành công',
-                'priority': 'Medium',
-                'status': 'Pending',
-                'functional_requirement': 'FR-002: Project Management',
-                'preconditions': 'User đã đăng nhập',
-                'test_steps': '1. Click nút "Tạo Project"\n2. Nhập tên project\n3. Nhập mô tả\n4. Click "Lưu"',
-                'expected_result': 'Project được tạo thành công và hiển thị trong danh sách'
-            },
-            {
-                'test_case_id': 'TC-004',
-                'test_case_name': 'Upload document PDF',
-                'description': 'Kiểm tra upload file PDF thành công',
-                'priority': 'Medium',
-                'status': 'Pending',
-                'functional_requirement': 'FR-003: Document Upload',
-                'preconditions': 'User đã đăng nhập và có project',
-                'test_steps': '1. Chọn project\n2. Click "Upload Document"\n3. Chọn file PDF\n4. Click "Upload"',
-                'expected_result': 'File được upload thành công và hiển thị trong danh sách documents'
-            },
-            {
-                'test_case_id': 'TC-005',
-                'test_case_name': 'Xóa document',
-                'description': 'Kiểm tra xóa document thành công',
-                'priority': 'Low',
-                'status': 'Pending',
-                'functional_requirement': 'FR-003: Document Upload',
-                'preconditions': 'User đã upload document',
-                'test_steps': '1. Chọn document cần xóa\n2. Click nút "Xóa"\n3. Xác nhận xóa',
-                'expected_result': 'Document được xóa khỏi danh sách'
-            },
-            {
-                'test_case_id': 'TC-006',
-                'test_case_name': 'Chọn sections để phân tích',
-                'description': 'Kiểm tra chọn sections thành công',
-                'priority': 'High',
-                'status': 'Pending',
-                'functional_requirement': 'FR-004: Section Selection',
-                'preconditions': 'Document đã được AI xử lý',
-                'test_steps': '1. Xem danh sách sections\n2. Chọn các sections cần phân tích\n3. Click "Save Selection"',
-                'expected_result': 'Sections được lưu và hiển thị đã chọn'
-            },
-            {
-                'test_case_id': 'TC-007',
-                'test_case_name': 'Chọn Functional Requirements',
-                'description': 'Kiểm tra chọn FR thành công',
-                'priority': 'High',
-                'status': 'Pending',
-                'functional_requirement': 'FR-005: FR Selection',
-                'preconditions': 'Sections đã được chọn',
-                'test_steps': '1. Xem danh sách FR\n2. Chọn các FR cần thiết\n3. Click "Choose FR Selections"',
-                'expected_result': 'FR được lưu và có thể tiếp tục bước tiếp theo'
-            },
-            {
-                'test_case_id': 'TC-008',
-                'test_case_name': 'Xem danh sách test cases',
-                'description': 'Kiểm tra hiển thị danh sách test cases sau khi AI tạo',
-                'priority': 'Medium',
-                'status': 'Pending',
-                'functional_requirement': 'FR-006: Test Case Display',
-                'preconditions': 'AI đã tạo test cases',
-                'test_steps': '1. Chờ AI xử lý xong\n2. Xem bảng test cases',
-                'expected_result': 'Hiển thị đầy đủ thông tin test cases trong bảng'
+            "testcases": {
+                "basic_validation": [
+                    {
+                        "test_case_id": 1,
+                        "test_case": "userId with ABSENT should return statuscode 400",
+                        "request_mapping": {
+                            "userId": "ABSENT"
+                        },
+                        "expected_output": {
+                            "statuscode": 400
+                        }
+                    },
+                    {
+                        "test_case_id": 2,
+                        "test_case": "userId with NULL should return statuscode 400",
+                        "request_mapping": {
+                            "userId": "NULL"
+                        },
+                        "expected_output": {
+                            "statuscode": 400
+                        }
+                    },
+                    {
+                        "test_case_id": 3,
+                        "test_case": "productId with ABSENT should return statuscode 400",
+                        "request_mapping": {
+                            "productId": "ABSENT"
+                        },
+                        "expected_output": {
+                            "statuscode": 400
+                        }
+                    },
+                    {
+                        "test_case_id": 4,
+                        "test_case": "itemType with invalid enum value 'OTHER' should return statuscode 400",
+                        "request_mapping": {
+                            "itemType": "OTHER"
+                        },
+                        "expected_output": {
+                            "statuscode": 400
+                        }
+                    },
+                    {
+                        "test_case_id": 5,
+                        "test_case": "notes with over max length (501 chars) should return statuscode 400",
+                        "request_mapping": {
+                            "notes": "CHARS(501)"
+                        },
+                        "expected_output": {
+                            "statuscode": 400
+                        }
+                    }
+                ],
+                "business_logic": [
+                    {
+                        "test_case_id": 1,
+                        "test_case": "Valid user and product should add item to favorites successfully",
+                        "request_mapping": {
+                            "userId": "usr_a1b2c3d4",
+                            "productId": "prod_12345678"
+                        },
+                        "expected_output": {
+                            "statuscode": 200,
+                            "response_mapping": {
+                                "code": "0000",
+                                "message": "Item added to favorites successfully."
+                            }
+                        }
+                    },
+                    {
+                        "test_case_id": 2,
+                        "test_case": "productId that does not exist should return statuscode 404",
+                        "request_mapping": {
+                            "userId": "usr_a1b2c3d4",
+                            "productId": "prod_99999999"
+                        },
+                        "expected_output": {
+                            "statuscode": 404,
+                            "response_mapping": {
+                                "code": "1001"
+                            }
+                        }
+                    },
+                    {
+                        "test_case_id": 3,
+                        "test_case": "Adding a product that is already a favorite should return statuscode 409",
+                        "request_mapping": {
+                            "userId": "usr_e5f6g7h8",
+                            "productId": "prod_87654321"
+                        },
+                        "expected_output": {
+                            "statuscode": 409,
+                            "response_mapping": {
+                                "code": "1002"
+                            }
+                        }
+                    }
+                ]
             }
-        ]
+        }
+        
+        # Fake endpoint (will be replaced with actual endpoint from API later)
+        fake_endpoint = "/api/v1/favorites/add"
+        fake_header = {
+            "Authorization": "Bearer 1234567890"
+        }
+        
+        # Convert API response format to display format
+        formatted_test_cases = []
+        
+        # Process basic_validation test cases
+        if 'basic_validation' in fake_api_response.get('testcases', {}):
+            for tc in fake_api_response['testcases']['basic_validation']:
+                # Build request body by merging original request_body with request_mapping
+                request_body = fake_api_response.get('request_body', {}).copy()
+                request_body.update(tc.get('request_mapping', {}))
+                
+                # Format expected output
+                expected_output = tc.get('expected_output', {})
+                expected_status = expected_output.get('statuscode', 'N/A')
+                expected_response = expected_output.get('response_mapping', {})
+                
+                formatted_test_cases.append({
+                    'test_case_id': f"TC-{tc.get('test_case_id', 'N/A')}",
+                    'endpoint': fake_endpoint,
+                    'header': fake_header,
+                    'test_case_name': tc.get('test_case', 'N/A'),
+                    'test_category': 'Basic Validation',
+                    'request_body': json.dumps(request_body, indent=2, ensure_ascii=False),
+                    'expected_statuscode': expected_status,
+                    'expected_response': json.dumps(expected_response, indent=2, ensure_ascii=False) if expected_response else 'N/A'
+                })
+        
+        # Process business_logic test cases
+        if 'business_logic' in fake_api_response.get('testcases', {}):
+            for tc in fake_api_response['testcases']['business_logic']:
+                # Build request body by merging original request_body with request_mapping
+                request_body = fake_api_response.get('request_body', {}).copy()
+                request_body.update(tc.get('request_mapping', {}))
+                
+                # Format expected output
+                expected_output = tc.get('expected_output', {})
+                expected_status = expected_output.get('statuscode', 'N/A')
+                expected_response = expected_output.get('response_mapping', {})
+                
+                formatted_test_cases.append({
+                    'test_case_id': f"TC-{tc.get('test_case_id', 'N/A')}",
+                    'endpoint': fake_endpoint,
+                    'header': fake_header,
+                    'test_case_name': tc.get('test_case', 'N/A'),
+                    'test_category': 'Business Logic',
+                    'request_body': json.dumps(request_body, indent=2, ensure_ascii=False),
+                    'expected_statuscode': expected_status,
+                    'expected_response': json.dumps(expected_response, indent=2, ensure_ascii=False) if expected_response else 'N/A'
+                })
         
         if DEBUG:
             print(f"=== GET TEST CASES ===")
             print(f"Project UUID: {project_uuid}")
-            print(f"Returning {len(fake_test_cases)} test cases")
+            print(f"Returning {len(formatted_test_cases)} test cases")
             print(f"=====================")
         
         # Return as dataframe-like structure
         return JsonResponse({
             'success': True,
             'data': {
-                'columns': ['test_case_id', 'test_case_name', 'description', 'priority', 'status', 
-                           'functional_requirement', 'preconditions', 'test_steps', 'expected_result'],
-                'rows': fake_test_cases,
-                'count': len(fake_test_cases)
+                'columns': ['test_case_id', 'endpoint', 'header', 'test_case_name', 'test_category', 
+                           'request_body', 'expected_statuscode', 'expected_response'],
+                'rows': formatted_test_cases,
+                'count': len(formatted_test_cases)
             }
         })
         

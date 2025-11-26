@@ -1,4 +1,5 @@
 {% load static %}
+{% load i18n %}
 <script>
 // Add collapsed class immediately if needed (before DOM renders)
 (function() {
@@ -23,9 +24,9 @@
     </div>
 
     <!-- New Project Button -->
-    <a href="{% url 'project_add' %}" class="new-project-btn" data-tooltip="New Project">
+    <a href="{% url 'project_add' %}" class="new-project-btn" data-tooltip="{% trans 'New Project' %}">
         <i class="fa fa-plus"></i>
-        <span>New Project</span>
+        <span>{% trans "New Project" %}</span>
     </a>
 
     {% if user.is_authenticated %}
@@ -33,27 +34,27 @@
     <div class="nav-container">
         <!-- Navigation Section -->
         <div class="nav-section-header">
-            <span>Navigation</span>
+            <span>{% trans "Navigation" %}</span>
         </div>
         <ul class="nav nav-pills flex-column">
             <li class="nav-item">
-                <a href="{% url 'home' %}" class="nav-link {% if request.resolver_match.url_name == 'home' %}active{% endif %}" data-tooltip="Home">
+                <a href="{% url 'home' %}" class="nav-link {% if request.resolver_match.url_name == 'home' %}active{% endif %}" data-tooltip="{% trans 'Home' %}">
                     <i class="fa fa-home"></i>
-                    <span>Home</span>
+                    <span>{% trans "Home" %}</span>
                 </a>
             </li>
             <li class="nav-item">
-                <a href="{% url 'library' %}" class="nav-link {% if request.resolver_match.url_name == 'library' %}active{% endif %}" data-tooltip="Thư viện">
+                <a href="{% url 'library' %}" class="nav-link {% if request.resolver_match.url_name == 'library' %}active{% endif %}" data-tooltip="{% trans 'Library' %}">
                     <i class="fa fa-book"></i>
-                    <span>Thư viện</span>
+                    <span>{% trans "Library" %}</span>
                 </a>
             </li>
         </ul>
 
         <!-- Projects Section -->
         <div class="nav-section-header">
-            <span>Projects</span>
-            <button class="add-btn-header" data-url="{% url 'project_add' %}" title="Add new project">
+            <span>{% trans "Projects" %}</span>
+            <button class="add-btn-header" data-url="{% url 'project_add' %}" title="{% trans 'Add new project' %}">
                 <i class="fa fa-plus"></i>
             </button>
         </div>
@@ -72,9 +73,9 @@
             <li class="project-divider"><hr class="dropdown-divider"></li>
             {% endif %}
             <li class="nav-item all-projects-link">
-                <a href="{% url 'project_list' %}" class="nav-link" data-tooltip="All Projects">
+                <a href="{% url 'project_list' %}" class="nav-link" data-tooltip="{% trans 'All Projects' %}">
                     <i class="fa fa-list"></i>
-                    <span>All Projects</span>
+                    <span>{% trans "All Projects" %}</span>
                 </a>
             </li>
         </ul>
@@ -82,8 +83,8 @@
         {% if test_suites_show and test_suites %}
         <!-- Test Suites Section -->
         <div class="nav-section-header">
-            <span>Test Suites</span>
-            <button class="add-btn-header" data-url="{% url 'test_suite_add' project_uuid=project.uuid %}" title="Add new test suite">
+            <span>{% trans "Test Suites" %}</span>
+            <button class="add-btn-header" data-url="{% url 'test_suite_add' project_uuid=project.uuid %}" title="{% trans 'Add new test suite' %}">
                 <i class="fa fa-plus"></i>
             </button>
         </div>
@@ -117,9 +118,9 @@
                 <div class="user-info">
                     <div class="user-name">{{ user.username }}</div>
                     {% if user.is_superuser %}
-                    <div class="user-status">Admin</div>
+                    <div class="user-status">{% trans "Admin" %}</div>
                     {% else %}
-                    <div class="user-status">User</div>
+                    <div class="user-status">{% trans "User" %}</div>
                     {% endif %}
                 </div>
                 <i class="fa fa-chevron-up user-chevron"></i>
@@ -127,20 +128,48 @@
             <ul class="dropdown-menu" aria-labelledby="dropdownUser1">
                 <li><a class="dropdown-item" href="{% url 'project_add' %}">
                     <i class="fa fa-plus"></i>
-                    <span>New project</span>
+                    <span>{% trans "New project" %}</span>
                 </a></li>
                 <li><a class="dropdown-item" href="#">
                     <i class="fa fa-cog"></i>
-                    <span>Settings</span>
+                    <span>{% trans "Settings" %}</span>
                 </a></li>
                 <li><a class="dropdown-item" href="#">
                     <i class="fa fa-user"></i>
-                    <span>Profile</span>
+                    <span>{% trans "Profile" %}</span>
                 </a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li class="dropdown-item-text">
+                    <i class="fa fa-language"></i>
+                    <span>{% trans "Language" %}</span>
+                </li>
+                {% get_current_language as current_lang %}
+                <li>
+                    <form method="post" action="{% url 'set_language' %}" style="display: inline;">
+                        {% csrf_token %}
+                        <input type="hidden" name="language" value="en">
+                        <button type="submit" class="dropdown-item {% if current_lang == 'en' %}active{% endif %}" style="border: none; background: none; width: 100%; text-align: left; padding: 0.5rem 1rem;">
+                            <i class="fa fa-globe"></i>
+                            <span>{% trans "English" %}</span>
+                            {% if current_lang == 'en' %}<i class="fa fa-check float-end"></i>{% endif %}
+                        </button>
+                    </form>
+                </li>
+                <li>
+                    <form method="post" action="{% url 'set_language' %}" style="display: inline;">
+                        {% csrf_token %}
+                        <input type="hidden" name="language" value="vi">
+                        <button type="submit" class="dropdown-item {% if current_lang == 'vi' %}active{% endif %}" style="border: none; background: none; width: 100%; text-align: left; padding: 0.5rem 1rem;">
+                            <i class="fa fa-globe"></i>
+                            <span>{% trans "Tiếng Việt" %}</span>
+                            {% if current_lang == 'vi' %}<i class="fa fa-check float-end"></i>{% endif %}
+                        </button>
+                    </form>
+                </li>
                 <li><hr class="dropdown-divider"></li>
                 <li><a class="dropdown-item" href="{% url 'logout' %}">
                     <i class="fa fa-sign-out-alt"></i>
-                    <span>Sign out</span>
+                    <span>{% trans "Sign out" %}</span>
                 </a></li>
             </ul>
         </div>
@@ -150,13 +179,16 @@
     <!-- Navigation for Non-authenticated Users -->
     <div class="nav-container">
         <div class="nav-section-header">
-            <span>Navigation</span>
+            <span>{% trans "Navigation" %}</span>
         </div>
         <ul class="nav nav-pills flex-column">
             <li class="nav-item">
-                <a href="{% url 'library' %}" class="nav-link {% if request.resolver_match.url_name == 'library' %}active{% endif %}" onclick="showNotification('warning', 'Login Required', 'Please log in to access the Library.'); return false;">
+                <a href="{% url 'library' %}" class="nav-link {% if request.resolver_match.url_name == 'library' %}active{% endif %}" 
+                   data-login-title="{% trans 'Login Required' %}" 
+                   data-login-message="{% trans 'Please log in to access the Library.' %}"
+                   onclick="showNotification('warning', this.dataset.loginTitle, this.dataset.loginMessage); return false;">
                     <i class="fa fa-book"></i>
-                    <span>Thư viện</span>
+                    <span>{% trans "Library" %}</span>
                 </a>
             </li>
         </ul>
@@ -164,13 +196,13 @@
 
     <!-- Authentication Section -->
     <div class="auth-section">
-        <a href="{% url 'login' %}" class="auth-btn login" data-tooltip="Login">
+        <a href="{% url 'login' %}" class="auth-btn login" data-tooltip="{% trans 'Login' %}">
             <i class="fa fa-sign-in-alt"></i>
-            <span>Login</span>
+            <span>{% trans "Login" %}</span>
         </a>
-        <a href="{% url 'register' %}" class="auth-btn register" data-tooltip="Register">
+        <a href="{% url 'register' %}" class="auth-btn register" data-tooltip="{% trans 'Register' %}">
             <i class="fa fa-user-plus"></i>
-            <span>Register</span>
+            <span>{% trans "Register" %}</span>
         </a>
     </div>
     {% endif %}

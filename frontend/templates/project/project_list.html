@@ -38,10 +38,13 @@
                 <a href="{% url 'project_detail_by_uuid' project_uuid=project.project_id %}" class="btn btn-primary btn-sm me-2">
                      View
                 </a>
-                <a href="{% url 'project_delete' project_uuid=project.project_id %}" class="btn btn-danger btn-sm"
-                   onclick="return confirm('Are you sure you want to delete this project?');">
-                     Delete
-                </a>
+                <form action="{% url 'project_delete' project_uuid=project.project_id %}" method="post" style="display:inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger btn-sm"
+                            onclick="return confirm('Are you sure you want to delete this project?');">
+                        Delete
+                    </button>
+                </form>
             </td>
         </tr>
         {% empty %}
