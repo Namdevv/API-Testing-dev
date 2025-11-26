@@ -12,16 +12,19 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 WORKDIR /app
 
-COPY requirements/ /app/requirements/
-
+COPY requirements/ocr.txt /app/requirements/ocr.txt
 RUN uv pip install -r requirements/ocr.txt --no-cache-dir --system
 
 # Install docling-tools and download models
 RUN docling-tools models download
 
+COPY requirements/base.txt /app/requirements/base.txt
 RUN uv pip install -r requirements/base.txt --no-cache-dir --system
 
+COPY requirements/langchain.txt /app/requirements/langchain.txt
 RUN uv pip install -r requirements/langchain.txt --no-cache-dir --system
+
+COPY requirements/server.txt /app/requirements/server.txt
 RUN uv pip install -r requirements/server.txt --no-cache-dir --system
 
 COPY . /app
