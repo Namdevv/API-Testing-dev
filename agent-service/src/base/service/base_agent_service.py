@@ -8,12 +8,13 @@ from langchain.chat_models import init_chat_model
 from langchain.messages import AIMessage, AnyMessage, HumanMessage, SystemMessage
 from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAI
 from langchain_ollama import OllamaLLM
+from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field, model_validator, validate_call
 
+from src.cache import cache_func_wrapper
 from src.common.common import split_by_size
 from src.enums.enums import LanguageEnum, ModelTypeEnum
 from src.settings import ENVIRONMENT, OLLAMA_BASE_URL
-from src.cache import cache_func_wrapper
 
 
 class BaseAgentService(BaseModel):
@@ -64,8 +65,8 @@ class BaseAgentService(BaseModel):
         model_params = {
             "model": self.llm_model,
             "temperature": self.llm_temperature,
-            "top_p": self.llm_top_p,
-            "top_k": self.llm_top_k,
+            # "top_p": self.llm_top_p,
+            # "top_k": self.llm_top_k,
         }
 
         llm: Union[ChatGoogleGenerativeAI, GoogleGenerativeAI, OllamaLLM]
@@ -79,7 +80,6 @@ class BaseAgentService(BaseModel):
             llm = OllamaLLM(
                 **_model_params,
             )
-
         elif model_type in ["gemini", "gemma"]:
             _model_params = model_params.copy()
 
@@ -87,6 +87,13 @@ class BaseAgentService(BaseModel):
             _model_params["model"] = "google_genai:" + self.llm_model
 
             llm = init_chat_model(**_model_params)
+        elif model_type == "vllm":
+            _model_params = model_params.copy()
+
+            _model_params["base_url"] = "https://api-t-vllm.truong51972.id.vn/v1"
+            _model_params["openai_api_key"] = "EMPTY"
+
+            llm = ChatOpenAI(**_model_params)
         else:
             raise ValueError(f"Unsupported model type: {model_type}")
 
@@ -134,14 +141,18 @@ class BaseAgentService(BaseModel):
 
         return messages
 
-    @validate_call
     @cache_func_wrapper
-    def run(self, human: str, chat_history: List[AnyMessage] = []) -> AIMessage:
-        messages = self._get_messages(human, chat_history)
-
+    def _run(self, messages: List[AnyMessage]) -> AIMessage:
         agent = self._get_agent()
 
         response = agent.invoke(messages)
+        return response
+
+    @validate_call
+    def run(self, human: str, chat_history: List[AnyMessage] = []) -> AIMessage:
+        messages = self._get_messages(human, chat_history)
+        response = self._run(messages)
+
         return response
 
     @validate_call
