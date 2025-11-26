@@ -1,7 +1,6 @@
 # src.graph.nodes.testcase_generator.document_collector
-import json
 import logging
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, Optional
 
 from langchain_core.output_parsers import JsonOutputParser
 from pydantic import validate_call
@@ -32,7 +31,7 @@ class DocumentCollector(BaseAgentService):
     def __call__(self, state: TestcasesGenStateModel) -> Dict[str, Any]:
         lang = state.lang
         fr_group = state.all_fr_groups[0]
-        all_docs_toc = state.all_docs_toc
+        all_docs_toc = state.extra_parameters["all_docs_toc"]
         self.set_system_lang(lang)
 
         input_data = f"* **Function Name**: '{fr_group}'\n{all_docs_toc}"
