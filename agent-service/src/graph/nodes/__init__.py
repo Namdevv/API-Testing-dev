@@ -15,3 +15,11 @@ from src.graph.nodes.docs_preprocessing.fr_annotation import FrAnnotationNode
 from src.graph.nodes.docs_preprocessing.document_description import (
     DocumentDescriptionNode,
 )
+
+from .testcase_generator.document_collector import DocumentCollector
+from .testcase_generator.document_preparator import DocumentPreparator
+from .testcase_generator.document_standardizer import (
+    DocumentStandardizer,
+)
+from .testcase_generator.testcase_generator import TestCaseGenerator
+from .testcase_generator.testcase_generator_loop import testcase_generator_loop
