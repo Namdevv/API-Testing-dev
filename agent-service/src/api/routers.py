@@ -4,6 +4,9 @@ from src.api.document.document_api import router as document_router
 from src.api.file.file import router as router_file
 from src.api.project.project import router as project_router
 from src.api.test_suite.test_suite_api import router as test_suite_router
+from src.api.test_cases.test_case_generation_api import (
+    router as test_case_generation_router,
+)
 
 all_routers = [
     common_router,
@@ -12,4 +15,5 @@ all_routers = [
     router_file,
     document_router,
     project_router,
+    test_case_generation_router,
 ]
