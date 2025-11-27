@@ -7,7 +7,6 @@ from sqlmodel import Field, Session, SQLModel, select
 from src.repositories.document.document_fr_to_content_repository import (
     DocumentFRToContentRepository,
 )
-from src.repositories.project.project_repository import ProjectRepository
 from src.settings import get_db_engine
 
 
