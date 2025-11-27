@@ -1,4 +1,5 @@
 # src.graph.nodes.testcase_generator.testcase_generator
+import logging
 from typing import Any, Dict
 
 from langchain_core.output_parsers import JsonOutputParser
@@ -11,30 +12,45 @@ from src.models import TestcasesGenStateModel
 
 class TestCaseGenerator(BaseAgentService):
     llm_model: str = "vllm-QC-AI"
-    llm_temperature: float = 0.1
+    llm_temperature: float = 0.0
 
     path_to_prompt: dict[LanguageEnum, str] = {
         LanguageEnum.VI: "src/graph/nodes/testcase_generator/prompts/testcase_generator_vi.md",
         LanguageEnum.EN: "src/graph/nodes/testcase_generator/prompts/testcase_generator_en.md",
     }
 
+    def extract_clean_json_from_text(self, raw_text):
+        """
+        Clean a single text block & extract JSON test case.
+        """
+        json_parser = JsonOutputParser()
+        data = json_parser.parse(raw_text)
+
+        if isinstance(data, list):
+            data = data[-1]
+        elif isinstance(data, dict):
+            pass
+
+        return {
+            "request_body": data.get("request_body", {}),
+            "testcases": data.get("testcases", {}),
+        }
+
     @validate_call
     def __call__(self, state: TestcasesGenStateModel) -> Dict[str, Any]:
         lang = state.lang
-        standardized_documents = state.extra_parameters["standardized_documents"]
+        current_fr = state.extra_parameters["current_fr"]
+        standardized_documents = state.extra_parameters["standardized_documents"][
+            current_fr
+        ]
         self.set_system_lang(lang)
 
         response = self.run(human=standardized_documents).content
 
-        json_parser = JsonOutputParser()
-        response = json_parser.parse(response)
+        response = self.extract_clean_json_from_text(response)
 
-        if isinstance(response, list):
-            state.testcases.append(response[-1])
-        elif isinstance(response, dict):
-            state.testcases.append(response)
-
-        state.all_fr_groups.pop(0)
+        state.test_case_infos[current_fr] = response
+        logging.info(f"Generated test cases for FR group: {current_fr}")
         return state
 
 

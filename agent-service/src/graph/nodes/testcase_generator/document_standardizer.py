@@ -1,4 +1,5 @@
 # src.graph.nodes.testcase_generator.document_standardizer
+import logging
 from typing import Optional
 
 from pydantic import validate_call
@@ -24,15 +25,18 @@ class DocumentStandardizer(BaseAgentService):
     @validate_call
     def __call__(self, state: TestcasesGenStateModel) -> TestcasesGenStateModel:
         collected_documents = state.extra_parameters.get("collected_documents", None)
+        current_fr = state.extra_parameters["current_fr"]
         if not collected_documents:
             raise ValueError("No collected documents found in state.extra_parameters")
         lang = state.lang
         self.set_system_lang(lang)
 
-        standardized_documents = self.run(human=collected_documents).content
+        standardized_documents = self.run(human=collected_documents[current_fr]).content
 
-        state.extra_parameters["standardized_documents"] = standardized_documents
-
+        state.extra_parameters["standardized_documents"][
+            current_fr
+        ] = standardized_documents
+        logging.info("Document standardization completed!")
         return state
 
 

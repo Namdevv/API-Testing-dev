@@ -1,4 +1,6 @@
 # src.graph.nodes.testcase_generator.document_preparator
+import logging
+
 from pydantic import BaseModel, validate_call
 from sqlmodel import Session
 
@@ -18,9 +20,7 @@ class DocumentPreparator(BaseModel):
             get_selected=True,
             session=session,
         )
-        state.all_fr_groups = [
-            fr_info.split(":")[1].strip() for fr_info in all_fr_infos
-        ]
+        all_fr_groups = [fr_info.split(":")[1].strip() for fr_info in all_fr_infos]
 
         docs_metadata = repositories.DocumentMetadataRepository.get_by_project_id(
             project_id=project_id,
@@ -31,8 +31,10 @@ class DocumentPreparator(BaseModel):
         for doc_metadata in docs_metadata:
             all_docs_toc += f"Document Name: {doc_metadata.doc_name}\n{doc_metadata.table_of_contents}\n\n"
 
-        state.extra_parameters["generated_testcases"] = []
         state.extra_parameters["all_docs_toc"] = all_docs_toc
+        state.extra_parameters["all_fr_groups"] = all_fr_groups
+
+        logging.info("Preparing documents completed!")
         return state
 
 
