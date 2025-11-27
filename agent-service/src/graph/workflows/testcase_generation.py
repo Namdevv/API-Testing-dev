@@ -39,6 +39,10 @@ class TestCaseGenerationWorkflow(BaseModel):
             nodes.DocumentPreparator(),
         )
         self.workflow.add_node(
+            "testcase_generator_job",
+            nodes.TestcaseGeneratorJob(),
+        )
+        self.workflow.add_node(
             "document_collector",
             nodes.DocumentCollector(),
         )
@@ -50,23 +54,24 @@ class TestCaseGenerationWorkflow(BaseModel):
             "testcase_generator",
             nodes.TestCaseGenerator(),
         )
-        # self.workflow.add_node(
-        #     "testcase_generator_loop",
-        #     nodes.testcase_generator_loop,
-        # )
+        self.workflow.add_node(
+            "api_info_collector",
+            nodes.APIInfoCollector(),
+        )
 
     def _setup_edges(self):
         """Configure all edges and entry point"""
         self.workflow.set_entry_point("document_preparator")
-        self.workflow.add_edge("document_preparator", "document_collector")
-        self.workflow.add_edge("document_collector", "document_standardizer")
-        self.workflow.add_edge("document_standardizer", "testcase_generator")
+        self.workflow.add_edge("document_preparator", "testcase_generator_job")
         self.workflow.add_conditional_edges(
-            "testcase_generator",
-            nodes.testcase_generator_loop,
+            "testcase_generator_job",
+            nodes.orchestrate_job,
             {"completed": END, "in_progress": "document_collector"},
         )
-        # self.workflow.add_edge("testcase_generator", END)
+        self.workflow.add_edge("document_collector", "document_standardizer")
+        self.workflow.add_edge("document_standardizer", "testcase_generator")
+        self.workflow.add_edge("testcase_generator", "api_info_collector")
+        self.workflow.add_edge("api_info_collector", "testcase_generator_job")
 
     def get_graph(self):
         """Get the compiled graph"""
