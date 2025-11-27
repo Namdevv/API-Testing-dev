@@ -1,4 +1,5 @@
 import logging
+import os
 from concurrent.futures import ThreadPoolExecutor
 from typing import List, Optional, Union
 
@@ -65,8 +66,8 @@ class BaseAgentService(BaseModel):
         model_params = {
             "model": self.llm_model,
             "temperature": self.llm_temperature,
-            # "top_p": self.llm_top_p,
-            # "top_k": self.llm_top_k,
+            "top_p": self.llm_top_p,
+            "top_k": self.llm_top_k,
         }
 
         llm: Union[ChatGoogleGenerativeAI, GoogleGenerativeAI, OllamaLLM]
@@ -90,8 +91,14 @@ class BaseAgentService(BaseModel):
         elif model_type == "vllm":
             _model_params = model_params.copy()
 
-            _model_params["base_url"] = "https://api-t-vllm.truong51972.id.vn/v1"
+            _model_params["base_url"] = os.getenv(
+                "VLLM_BASE_URL", "http://localhost:8000/v1/"
+            )
             _model_params["openai_api_key"] = "EMPTY"
+            _model_params["timeout"] = 900
+
+            # VLLM does not support top_k
+            del _model_params["top_k"]
 
             llm = ChatOpenAI(**_model_params)
         else:
