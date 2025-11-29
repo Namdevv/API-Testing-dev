@@ -3,6 +3,7 @@ import logging
 
 from pydantic import BaseModel, validate_call
 from sqlmodel import Session
+
 from src import repositories
 from src.models import TestcasesGenStateModel
 from src.settings import get_db_engine
@@ -14,12 +15,11 @@ class DocumentPreparator(BaseModel):
         project_id = state.project_id
         session = Session(get_db_engine())
 
-        all_fr_infos = repositories.DocumentFRInfoRepository.get_all_fr_groups(
+        all_fr_infos = repositories.DocumentFRInfoRepository.get_all_by_project_id(
             project_id=project_id,
-            get_selected=True,
+            is_selected=True,
             session=session,
         )
-        # all_fr_groups = [fr_info.split(":")[1].strip() for fr_info in all_fr_infos]
 
         docs_metadata = repositories.DocumentMetadataRepository.get_by_project_id(
             project_id=project_id,

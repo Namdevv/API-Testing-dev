@@ -5,6 +5,7 @@ from typing import Any, Dict, Optional
 from langchain_core.output_parsers import JsonOutputParser
 from pydantic import validate_call
 
+from src import repositories
 from src.base.service.base_agent_service import BaseAgentService
 from src.enums.enums import LanguageEnum
 from src.models import TestcasesGenStateModel
@@ -24,9 +25,13 @@ class APIInfoCollector(BaseAgentService):
     @validate_call
     def __call__(self, state: TestcasesGenStateModel) -> Dict[str, Any]:
         lang = state.lang
-        current_fr = state.extra_parameters["current_fr"]
+
+        all_fr_infos = state.extra_parameters["all_fr_infos"]
+        current_fr_index = state.extra_parameters.get("current_fr_index", -1)
+        current_fr_id = all_fr_infos[current_fr_index].fr_info_id
+
         standardized_documents = state.extra_parameters["standardized_documents"][
-            current_fr
+            current_fr_id
         ]
         self.set_system_lang(lang)
 
@@ -35,7 +40,9 @@ class APIInfoCollector(BaseAgentService):
         json_parser = JsonOutputParser()
         response = json_parser.parse(response)
 
-        state.test_case_infos[current_fr]["api_info"] = response
+        state.test_case_infos.setdefault(current_fr_id, {})["api_info"] = (
+            repositories.ApiInfoModel(**response)
+        )
 
         logging.info("API info collection completed!")
         return state

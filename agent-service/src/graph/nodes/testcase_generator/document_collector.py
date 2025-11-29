@@ -30,7 +30,12 @@ class DocumentCollector(BaseAgentService):
     @validate_call
     def __call__(self, state: TestcasesGenStateModel) -> Dict[str, Any]:
         lang = state.lang
-        current_fr = state.extra_parameters["current_fr"]
+
+        all_fr_infos = state.extra_parameters["all_fr_infos"]
+        current_fr_index = state.extra_parameters.get("current_fr_index", -1)
+        current_fr = all_fr_infos[current_fr_index].get_fr_group_name()
+        current_fr_id = all_fr_infos[current_fr_index].fr_info_id
+
         all_docs_toc = state.extra_parameters["all_docs_toc"]
         self.set_system_lang(lang)
 
@@ -83,7 +88,9 @@ class DocumentCollector(BaseAgentService):
 
                     collected_documents += f"{content[0].text}\n"
 
-        state.extra_parameters["collected_documents"][current_fr] = collected_documents
+        state.extra_parameters["collected_documents"][
+            current_fr_id
+        ] = collected_documents
         logging.info("Document collection completed!")
         return state
 
