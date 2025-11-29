@@ -124,6 +124,7 @@ class BaseAgentService(BaseModel):
         for lang, path in self.path_to_prompt.items():
             try:
                 with open(path, "r") as f:
+                    logging.info(f"load system prompt from ...{path.split('/')[-1]}")
                     self._system_prompts[lang] = SystemMessage(f.read())
             except Exception as e:
                 logging.error(f"Failed to load prompt for {lang} from {path}: {e}")
@@ -131,7 +132,6 @@ class BaseAgentService(BaseModel):
     @validate_call
     def set_system_lang(self, lang: LanguageEnum):
         if ENVIRONMENT == "dev":
-            logging.info("Reloading system prompt...")
             self.load_system_prompt()
 
         if lang not in self._system_prompts:
