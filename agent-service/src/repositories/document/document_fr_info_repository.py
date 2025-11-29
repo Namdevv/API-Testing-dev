@@ -52,6 +52,9 @@ class DocumentFRInfoRepository(SQLModel, table=True):
         }
     )
 
+    def get_fr_group_name(self) -> str:
+        return self.fr_group.split(":")[1].strip()
+
     @model_validator(mode="after")
     def check_fr_info_id(self):
         if not self.fr_info_id:
@@ -62,12 +65,22 @@ class DocumentFRInfoRepository(SQLModel, table=True):
 
     @classmethod
     def get_all_by_project_id(
-        cls, project_id: str, session: Optional[Session] = None
+        cls,
+        project_id: str,
+        is_selected: bool = None,
+        session: Optional[Session] = None,
     ) -> list["DocumentFRInfoRepository"]:
         session = session or Session(get_db_engine())
 
         with session:
-            statement = select(cls).where(cls.project_id == project_id)
+            statement = select(cls).where(
+                (cls.project_id == project_id)
+                & (
+                    (cls.is_selected == is_selected)
+                    if is_selected is not None
+                    else True
+                )
+            )
             results = session.exec(statement).all()
             return results
 
