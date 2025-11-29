@@ -1,12 +1,11 @@
 import logging
 import uuid
-from datetime import datetime
 from typing import Optional
 
 from sqlalchemy import JSON, Column
 from sqlmodel import Field, Session, SQLModel, select
 
-from src.settings import get_db_engine, get_now_vn
+from src.settings import get_db_engine
 
 
 class ApiInfoModel(SQLModel):
