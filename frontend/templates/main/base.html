@@ -156,6 +156,24 @@
             delete fetchOptions._timeoutMs;
             delete fetchOptions._retries;
 
+            // Ensure headers object exists and add Authorization header
+            if (!fetchOptions.headers) {
+                fetchOptions.headers = {};
+            }
+            
+            // Handle different header types
+            if (fetchOptions.headers instanceof Headers) {
+                // If it's already a Headers object, just add Authorization if not present
+                if (!fetchOptions.headers.has('Authorization')) {
+                    fetchOptions.headers.set('Authorization', 'Basic YWRtaW46YWRtaW4=');
+                }
+            } else if (typeof fetchOptions.headers === 'object' && fetchOptions.headers !== null) {
+                // If headers is a plain object, add Authorization if not already present
+                if (!fetchOptions.headers['Authorization'] && !fetchOptions.headers['authorization']) {
+                    fetchOptions.headers['Authorization'] = 'Basic YWRtaW46YWRtaW4=';
+                }
+            }
+
             // Show loading overlay if not disabled
             let loadingShown = false;
             if (!noLoading) {
