@@ -37,7 +37,7 @@ from .models import DocumentSection, ProjectDocument, UserProject, GeneratedTest
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # Constants
-DEBUG = True  # Set to False to disable debug prints
+DEBUG = False  # Set to False to disable debug prints
 MINIO_ENDPOINT = "minio-api.truong51972.id.vn"
 MINIO_ACCESS_KEY = "minioadmin"
 MINIO_SECRET_KEY = "minioadmin"
@@ -2858,58 +2858,125 @@ def check_test_case_status(request, project_uuid):
 @login_required
 @require_http_methods(["GET"])
 def get_test_cases(request, project_uuid):
-    """Get generated test cases from database as dataframe (JSON format)"""
+    """Get test cases from API by test suite ID"""
     project = get_object_or_404(UserProject, uuid=project_uuid, user=request.user)
     
     try:
-        # Fetch test cases from database
-        test_cases = GeneratedTestCase.objects.filter(project=project).order_by('api_name', 'test_category', 'test_case_id')
+        # Get the latest test suite for this project
+        latest_test_suite = ProjectTestSuite.objects.filter(project=project).order_by('-created_at').first()
+        
+        if not latest_test_suite or not latest_test_suite.api_test_suite_id:
+            return JsonResponse({
+                'success': False,
+                'message': 'Không tìm thấy test suite cho project này.'
+            }, status=404)
+        
+        test_suite_id = latest_test_suite.api_test_suite_id
         
         if DEBUG:
-            print(f"=== GET TEST CASES ===")
+            print(f"\n=== GET TEST CASES FROM API ===")
             print(f"Project UUID: {project_uuid}")
-            print(f"Found {test_cases.count()} test cases in database")
-            print(f"=====================")
+            print(f"Test Suite ID: {test_suite_id}")
         
-        # Convert to display format
+        # Prepare headers according to API specification
+        headers = {
+            'accept': 'application/json',
+            'X-Service-Name': 'agent-service',
+            'Authorization': 'Basic YWRtaW46YWRtaW4='
+        }
+        
+        # Build API URL
+        test_cases_url = f"{GET_TEST_CASES_ENDPOINT}/{test_suite_id}"
+        
+        if DEBUG:
+            print(f"API URL: {test_cases_url}")
+            print(f"Headers: {headers}")
+        
+        # Call API
+        response = requests.get(test_cases_url, headers=headers, timeout=30, verify=False)
+        
+        if DEBUG:
+            print(f"Response Status: {response.status_code}")
+        
+        if response.status_code != 200:
+            return JsonResponse({
+                'success': False,
+                'message': f'Lỗi khi gọi API: HTTP {response.status_code}'
+            }, status=response.status_code)
+        
+        # Parse response
+        response_data = response.json()
+        
+        if DEBUG:
+            print(f"Response Data: {json.dumps(response_data, indent=2, ensure_ascii=False)}")
+        
+        # Check result code
+        result = response_data.get('result', {})
+        code = result.get('code', [])
+        
+        if code != ['0000']:
+            description = result.get('description', 'Unknown error')
+            return JsonResponse({
+                'success': False,
+                'message': f'API trả về lỗi: {description}'
+            }, status=400)
+        
+        # Extract test cases from response
+        data = response_data.get('data', {})
+        test_cases = data.get('test_cases', [])
+        
+        if DEBUG:
+            print(f"Found {len(test_cases)} test cases in API response")
+        
+        # Format test cases for frontend
         formatted_test_cases = []
         
         for tc in test_cases:
-            # Build request body by merging template with mapping
-            request_body = tc.request_body_template.copy() if tc.request_body_template else {}
-            request_body.update(tc.request_mapping if tc.request_mapping else {})
+            # Extract data from API response
+            test_case_id = tc.get('test_case_id', 'N/A')
+            test_case_name = tc.get('test_case', 'N/A')
+            test_case_type = tc.get('test_case_type', 'basic_validation')
+            request_body = tc.get('request_body', {})
+            execute = tc.get('execute', False)
+            tc_id = tc.get('id', '')
+            api_info = tc.get('api_info', {})
+            expected_output = tc.get('expected_output', {})
             
-            # Format expected output
-            expected_output = tc.expected_output if tc.expected_output else {}
-            expected_status = expected_output.get('statuscode', 'N/A')
+            # Extract API info
+            api_url = api_info.get('url', 'N/A')
+            api_method = api_info.get('method', 'N/A')
+            api_headers = api_info.get('headers', {})
+            
+            # Extract expected output
+            expected_statuscode = expected_output.get('statuscode', 'N/A')
             expected_response = expected_output.get('response_mapping', {})
             
             # Format category name
-            category_display = 'Basic Validation' if tc.test_category == 'basic_validation' else 'Business Logic'
+            category_display = 'Basic Validation' if test_case_type == 'basic_validation' else 'Business Logic'
             
-            # Get headers (default if empty)
-            headers = tc.request_headers if tc.request_headers else {
-                "Content-Type": "application/json",
-                "Accept": "application/json"
-            }
-            
-            # Get request URL
-            request_url = tc.request_url if tc.request_url else 'N/A'
+            # Format test case ID
+            formatted_test_case_id = f"TC-{test_case_id}" if test_case_id != 'N/A' else 'N/A'
             
             formatted_test_cases.append({
-                'test_case_id': f"TC-{tc.test_case_id}",
-                'endpoint': request_url,
-                'header': headers,
-                'test_case_name': tc.test_case_name,
+                'test_case_id': formatted_test_case_id,
+                'endpoint': api_url,
+                'header': api_headers,
+                'test_case_name': test_case_name,
                 'test_category': category_display,
                 'request_body': json.dumps(request_body, indent=2, ensure_ascii=False),
-                'expected_statuscode': expected_status,
+                'expected_statuscode': expected_statuscode,
                 'expected_response': json.dumps(expected_response, indent=2, ensure_ascii=False) if expected_response else 'N/A',
-                'api_name': tc.api_name,
-                'http_method': tc.http_method,
-                'uuid': str(tc.uuid),
-                'full_test_case_data': tc.test_case_data
+                'api_name': api_url.split('/')[-1] if api_url != 'N/A' else 'N/A',  # Extract API name from URL
+                'http_method': api_method,
+                'uuid': tc_id,
+                'full_test_case_data': tc,  # Include full test case data from API
+                'is_selected': execute,  # Use execute field as selection state
+                'execute': execute
             })
+        
+        if DEBUG:
+            print(f"Formatted {len(formatted_test_cases)} test cases")
+            print(f"===========================================\n")
         
         # Return as dataframe-like structure
         return JsonResponse({
@@ -2922,10 +2989,23 @@ def get_test_cases(request, project_uuid):
             }
         })
         
+    except requests.exceptions.RequestException as e:
+        if DEBUG:
+            print(f"=== GET TEST CASES API ERROR ===")
+            print(f"Request Error: {str(e)}")
+            import traceback
+            print(traceback.format_exc())
+            print(f"===================================")
+        return JsonResponse({
+            'success': False,
+            'message': f'Lỗi kết nối API: {str(e)}'
+        }, status=500)
     except Exception as e:
         if DEBUG:
             print(f"=== GET TEST CASES ERROR ===")
             print(f"Error: {str(e)}")
+            import traceback
+            print(traceback.format_exc())
             print(f"===========================")
         return JsonResponse({
             'success': False,
@@ -2968,141 +3048,257 @@ def select_test_cases(request, project_uuid):
                 'message': 'Vui lòng chọn ít nhất một test case.'
             }, status=400)
         
+        # Warn if execute is False - this might be the issue
+        if not execute:
+            if DEBUG:
+                print(f"\n⚠ WARNING: execute=False was sent!")
+                print(f"  If you want to SELECT test cases for execution, execute should be True")
+                print(f"  execute=False might mean 'deselect' or 'unselect' test cases")
+                print(f"  This might explain why execute field is not being set to True on the server")
+        
+        # Validate and prepare test_case_ids
+        if not isinstance(test_case_ids, list):
+            return JsonResponse({
+                'success': False,
+                'message': 'test_case_ids phải là một array.'
+            }, status=400)
+        
+        # Ensure all test_case_ids are strings (UUIDs)
+        test_case_ids = [str(tc_id) for tc_id in test_case_ids]
+        
         # Prepare payload according to API specification
         payload = {
             'test_case_ids': test_case_ids,
-            'execute': execute
+            'execute': bool(execute)  # Ensure boolean
         }
         
+        # Prepare headers according to API specification
         headers = {
-            'Content-Type': 'application/json',
             'accept': 'application/json',
-            'X-Service-Name': 'agent-service'
+            'Content-Type': 'application/json',
+            'X-Service-Name': 'agent-service',
+            'Authorization': 'Basic YWRtaW46YWRtaW4='
         }
         
         if DEBUG:
             print(f"\n--- API Call Preparation ---")
             print(f"Endpoint: {SELECT_TEST_CASES_ENDPOINT}")
             print(f"Payload: {json.dumps(payload, indent=2, ensure_ascii=False)}")
+            print(f"Payload Type Check:")
+            print(f"  - test_case_ids type: {type(payload['test_case_ids'])}")
+            print(f"  - test_case_ids length: {len(payload['test_case_ids'])}")
+            print(f"  - execute type: {type(payload['execute'])}")
+            print(f"  - execute value: {payload['execute']}")
             print(f"Headers: {json.dumps(headers, indent=2, ensure_ascii=False)}")
         
         # Call API endpoint
-        success, response_data, error_msg = call_api_with_retry(
-            url=SELECT_TEST_CASES_ENDPOINT,
-            method='POST',
+        response = requests.post(
+            SELECT_TEST_CASES_ENDPOINT,
             headers=headers,
-            json_data=payload,
-            max_retries=2,
-            retry_delay=2
+            json=payload,
+            timeout=30,
+            verify=False
         )
         
         if DEBUG:
             print(f"\n--- API Response ---")
-            print(f"Success: {success}")
-            if success:
-                print(f"Response Data Type: {type(response_data)}")
-                print(f"Response Data: {json.dumps(response_data, indent=2, ensure_ascii=False)}")
-            else:
-                print(f"Error Message: {error_msg}")
-            print(f"{'='*60}\n")
+            print(f"Status Code: {response.status_code}")
         
-        if success:
-            # Check response status
-            result = response_data.get('result', {})
-            code = result.get('code', [])
-            
+        if response.status_code != 200:
             if DEBUG:
-                print(f"\n--- Response Processing ---")
-                print(f"Result: {result}")
+                print(f"Response Text: {response.text}")
+                print(f"Response Headers: {dict(response.headers)}")
+            return JsonResponse({
+                'success': False,
+                'message': f'Lỗi khi gọi API: HTTP {response.status_code}'
+            }, status=response.status_code)
+        
+        # Parse response
+        try:
+            response_data = response.json()
+        except json.JSONDecodeError:
+            if DEBUG:
+                print(f"ERROR: Response is not valid JSON")
+                print(f"Response Text: {response.text}")
+                print(f"Response Headers: {dict(response.headers)}")
+            return JsonResponse({
+                'success': False,
+                'message': f'API trả về response không hợp lệ: {response.text[:200]}'
+            }, status=500)
+        
+        if DEBUG:
+            print(f"Response Data: {json.dumps(response_data, indent=2, ensure_ascii=False)}")
+            print(f"Response Headers: {dict(response.headers)}")
+            print(f"Full Response Object: Status={response.status_code}, URL={response.url}")
+        
+        # Check result code
+        result = response_data.get('result', {})
+        code = result.get('code', [])
+        
+        if DEBUG:
+            print(f"\n--- Response Processing ---")
+            print(f"Result: {result}")
+            print(f"Code: {code}")
+            print(f"Code == ['0000']: {code == ['0000']}")
+        
+        if code != ['0000']:
+            description = result.get('description', 'Unknown error')
+            if DEBUG:
+                print(f"\n--- API Returned Error Code ---")
                 print(f"Code: {code}")
-                print(f"Code Type: {type(code)}")
-                print(f"Code == ['0000']: {code == ['0000']}")
-            
-            if code == ['0000']:
-                # Lấy test_suite_id từ database (test suite đã được tạo từ lúc generate test cases)
-                test_suite_id = None
-                api_test_suite_id = None
-                latest_test_suite = None
-
-                if DEBUG:
-                    print(f"\n--- Getting test_suite_id from Database ---")
-                    print(f"Project UUID: {project_uuid}")
-                
-                try:
-                    # Lấy test suite mới nhất của project này (đã được tạo khi generate test cases)
-                    latest_test_suite = ProjectTestSuite.objects.filter(project=project).order_by('-created_at').first()
-                    if latest_test_suite:
-                        test_suite_id = latest_test_suite.api_test_suite_id or str(latest_test_suite.uuid)
-                        if DEBUG:
-                            print(f"Found test_suite from DB:")
-                            print(f"  - UUID: {test_suite_id}")
-                            print(f"  - Name: {latest_test_suite.test_suite_name}")
-                            print(f"  - Created At: {latest_test_suite.created_at}")
-                    else:
-                        if DEBUG:
-                            print(f"WARNING: No test suite found in database for project {project_uuid}")
-                            print(f"Project has {ProjectTestSuite.objects.filter(project=project).count()} test suites")
-                            print(f"API Test Suite ID: {api_test_suite_id}")
-                except Exception as e:
-                    if DEBUG:
-                        print(f"Error getting test_suite_id from database: {e}")
-                        import traceback
-                        print(traceback.format_exc())
-                
-                if DEBUG:
-                    print(f"\n--- Final test_suite_id ---")
-                    print(f"test_suite_id: {test_suite_id}")
-                
-                # Trả về response - test_suite_id sẽ được dùng khi execute
-                response_json = {
-                    'success': True,
-                    'message': f'Đã chọn {len(test_case_ids)} test case(s) thành công.',
-                    'selected_count': len(test_case_ids),
-                    'response': response_data
-                }
-                
-                if test_suite_id:
-                    response_json['test_suite_id'] = test_suite_id
-                    if DEBUG:
-                        print(f"\n--- Response JSON with test_suite_id ---")
-                        print(f"Response JSON: {json.dumps(response_json, indent=2, ensure_ascii=False)}")
-                else:
-                    if DEBUG:
-                        print(f"\n--- WARNING: No test_suite_id found in database ---")
-                        print(f"This might happen if test cases were not generated yet")
-                        print(f"Response JSON (without test_suite_id): {json.dumps(response_json, indent=2, ensure_ascii=False)}")
-                
-                if DEBUG:
-                    print(f"\n{'='*60}")
-                    print(f"=== SELECT TEST CASES - END (SUCCESS) ===")
-                    print(f"{'='*60}\n")
-                
-                return JsonResponse(response_json)
-            else:
-                description = result.get('description', 'Unknown error')
-                if DEBUG:
-                    print(f"\n--- API Returned Error Code ---")
-                    print(f"Code: {code}")
-                    print(f"Description: {description}")
-                    print(f"Full Result: {result}")
-                    print(f"\n{'='*60}")
-                    print(f"=== SELECT TEST CASES - END (ERROR CODE) ===")
-                    print(f"{'='*60}\n")
-                return JsonResponse({
-                    'success': False,
-                    'message': f'API trả về lỗi: {description}'
-                }, status=400)
-        else:
-            if DEBUG:
-                print(f"\n--- API Call Failed ---")
-                print(f"Error Message: {error_msg}")
+                print(f"Description: {description}")
+                print(f"Full Result: {result}")
                 print(f"\n{'='*60}")
-                print(f"=== SELECT TEST CASES - END (API FAILED) ===")
+                print(f"=== SELECT TEST CASES - END (ERROR CODE) ===")
                 print(f"{'='*60}\n")
             return JsonResponse({
                 'success': False,
-                'message': f'Không thể chọn test cases: {error_msg}'
-            }, status=500)
+                'message': f'API trả về lỗi: {description}'
+            }, status=400)
+        
+        # Extract selected test cases from response
+        data_response = response_data.get('data', {})
+        selected_test_cases = data_response.get('test_cases', [])
+        
+        if DEBUG:
+            print(f"\n--- Success ---")
+            print(f"Selected Test Cases: {selected_test_cases}")
+            print(f"Selected Count: {len(selected_test_cases)}")
+        
+        # Verify: Call get_test_cases API to check if execute was actually set
+        if DEBUG:
+            print(f"\n--- Verifying Execute Status ---")
+        
+        try:
+            # Get test suite ID for verification
+            latest_test_suite = ProjectTestSuite.objects.filter(project=project).order_by('-created_at').first()
+            if latest_test_suite and latest_test_suite.api_test_suite_id:
+                verify_headers = {
+                    'accept': 'application/json',
+                    'X-Service-Name': 'agent-service',
+                    'Authorization': 'Basic YWRtaW46YWRtaW4='
+                }
+                verify_url = f"{GET_TEST_CASES_ENDPOINT}/{latest_test_suite.api_test_suite_id}"
+                
+                if DEBUG:
+                    print(f"Verification URL: {verify_url}")
+                
+                # Wait and retry verification (backend might need time to process async update)
+                import time
+                execute_status_map = {}
+                max_retries = 5  # Try up to 5 times
+                initial_delay = 1.0  # Start with 1 second
+                max_delay = 3.0  # Max 3 seconds between retries
+                
+                for retry in range(max_retries):
+                    if retry > 0:
+                        # Exponential backoff: 1s, 2s, 3s, 3s, 3s
+                        delay = min(initial_delay * retry, max_delay)
+                        if DEBUG:
+                            print(f"  Retry {retry}/{max_retries-1}: Waiting {delay}s before checking...")
+                        time.sleep(delay)
+                    
+                    verify_response = requests.get(verify_url, headers=verify_headers, timeout=30, verify=False)
+                    
+                    if verify_response.status_code == 200:
+                        verify_data = verify_response.json()
+                        verify_result = verify_data.get('result', {})
+                        if verify_result.get('code', []) == ['0000']:
+                            verify_test_cases = verify_data.get('data', {}).get('test_cases', [])
+                            
+                            # Check execute status for selected test cases
+                            execute_status_map = {}
+                            for tc in verify_test_cases:
+                                tc_id = tc.get('id')
+                                tc_execute = tc.get('execute', False)
+                                if tc_id in selected_test_cases:
+                                    execute_status_map[tc_id] = tc_execute
+                            
+                            # Check if all selected test cases have execute=True
+                            all_execute_true = all(execute_status_map.values()) if execute_status_map else False
+                            
+                            if DEBUG:
+                                true_count = sum(1 for v in execute_status_map.values() if v is True)
+                                false_count = sum(1 for v in execute_status_map.values() if v is False)
+                                print(f"  Attempt {retry + 1}: Execute=True: {true_count}, Execute=False: {false_count}")
+                            
+                            # If all are True, we're done
+                            if all_execute_true:
+                                if DEBUG:
+                                    print(f"  ✓ All test cases have execute=True!")
+                                break
+                        else:
+                            if DEBUG:
+                                print(f"  Attempt {retry + 1}: API returned error code")
+                    else:
+                        if DEBUG:
+                            print(f"  Attempt {retry + 1}: HTTP {verify_response.status_code}")
+                
+                if DEBUG:
+                    print(f"\nVerification Results (after {max_retries} attempts):")
+                    print(f"  Total test cases checked: {len(execute_status_map)}")
+                    true_count = sum(1 for v in execute_status_map.values() if v is True)
+                    false_count = sum(1 for v in execute_status_map.values() if v is False)
+                    print(f"  Execute=True: {true_count}")
+                    print(f"  Execute=False: {false_count}")
+                    
+                    if false_count > 0:
+                        print(f"  ⚠ WARNING: {false_count} test case(s) still have execute=False!")
+                        print(f"  This might indicate:")
+                        print(f"    1. Backend API needs more time to process (async)")
+                        print(f"    2. Backend API has a bug")
+                        print(f"    3. Payload format might be incorrect")
+                        for tc_id, exec_status in execute_status_map.items():
+                            if not exec_status:
+                                print(f"    - {tc_id}: execute={exec_status}")
+                
+                # Prepare verification info for response
+                if execute_status_map:
+                    verification_info = {
+                        'verified': True,
+                        'execute_true_count': sum(1 for v in execute_status_map.values() if v is True),
+                        'execute_false_count': sum(1 for v in execute_status_map.values() if v is False),
+                        'execute_status': execute_status_map,
+                        'all_execute_true': all(execute_status_map.values())
+                    }
+                else:
+                    verification_info = {
+                        'verified': False,
+                        'error': 'Failed to verify: Could not retrieve test cases'
+                    }
+                    if DEBUG:
+                        print(f"Verification failed: Could not retrieve test cases")
+            else:
+                verification_info = {
+                    'verified': False,
+                    'error': 'No test suite found for verification'
+                }
+                if DEBUG:
+                    print(f"Verification skipped: No test suite found")
+        except Exception as verify_error:
+            verification_info = {
+                'verified': False,
+                'error': f'Verification error: {str(verify_error)}'
+            }
+            if DEBUG:
+                print(f"Verification error: {verify_error}")
+                import traceback
+                print(traceback.format_exc())
+        
+        if DEBUG:
+            print(f"\n{'='*60}")
+            print(f"=== SELECT TEST CASES - END (SUCCESS) ===")
+            print(f"{'='*60}\n")
+        
+        # Return success response with verification info
+        return JsonResponse({
+            'success': True,
+            'message': f'Đã chọn {len(selected_test_cases)} test case(s) thành công.',
+            'selected_count': len(selected_test_cases),
+            'selected_test_cases': selected_test_cases,
+            'verification': verification_info if 'verification_info' in locals() else {'verified': False, 'error': 'Verification not performed'},
+            'response': response_data
+        })
         
     except json.JSONDecodeError as e:
         if DEBUG:
@@ -3116,6 +3312,17 @@ def select_test_cases(request, project_uuid):
             'success': False,
             'message': 'Invalid JSON data in request'
         }, status=400)
+    except requests.exceptions.RequestException as e:
+        if DEBUG:
+            print(f"\n--- API Request Error ---")
+            print(f"Error: {str(e)}")
+            print(f"\n{'='*60}")
+            print(f"=== SELECT TEST CASES - END (API ERROR) ===")
+            print(f"{'='*60}\n")
+        return JsonResponse({
+            'success': False,
+            'message': f'Lỗi kết nối API: {str(e)}'
+        }, status=500)
     except Exception as e:
         if DEBUG:
             print(f"\n{'='*60}")

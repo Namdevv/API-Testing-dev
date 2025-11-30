@@ -51,6 +51,18 @@
 <script>
     let currentStep = 1;
     let totalSteps = 5;
+    const projectUuid = '{{ project.uuid }}';
+
+    // Restore current step from localStorage on page load
+    (function() {
+        const savedStep = localStorage.getItem(`project_step_${projectUuid}`);
+        if (savedStep) {
+            const stepNum = parseInt(savedStep, 10);
+            if (stepNum >= 1 && stepNum <= totalSteps) {
+                currentStep = stepNum;
+            }
+        }
+    })();
 
     function setStep(n) {
         const steps = document.querySelectorAll('.step');
@@ -60,12 +72,27 @@
             if (i === n - 1) s.classList.add('active');  // bước hiện tại
         });
         currentStep = n;
+        
+        // Save current step to localStorage
+        localStorage.setItem(`project_step_${projectUuid}`, n.toString());
 
         // Ẩn/hiện nội dung theo step
         document.querySelectorAll('.phase').forEach(el => el.classList.add('d-none'));
         const currentPhase = document.getElementById('phase' + n);
         if (currentPhase) currentPhase.classList.remove('d-none');
     }
+    
+    // Restore step on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        setStep(currentStep);
+        
+        // If restoring to step 4, automatically load test cases if they exist
+        if (currentStep === 4) {
+            setTimeout(() => {
+                startTestCaseGeneration(projectUuid);
+            }, 500);
+        }
+    });
 
     function nextStep() {
         if (currentStep === 1) {
@@ -435,7 +462,34 @@
     }
 
     // Test Case Generation Functions
+    // Store progress interval references to prevent overlap
+    let testCaseFinalInterval = null;
+    let testCaseStatusCheckTimeout = null;
+    let testCaseProgressStages = []; // Store all stage timeouts
+    let isTestCaseProgressRunning = false; // Flag to prevent multiple progress bars
+
+    function clearAllTestCaseProgress() {
+        // Clear all progress-related timeouts and intervals
+        if (testCaseFinalInterval) {
+            clearInterval(testCaseFinalInterval);
+            testCaseFinalInterval = null;
+        }
+        if (testCaseStatusCheckTimeout) {
+            clearTimeout(testCaseStatusCheckTimeout);
+            testCaseStatusCheckTimeout = null;
+        }
+        // Clear all stage timeouts
+        testCaseProgressStages.forEach(timeoutId => {
+            if (timeoutId) clearTimeout(timeoutId);
+        });
+        testCaseProgressStages = [];
+        isTestCaseProgressRunning = false;
+    }
+
     function startTestCaseGeneration(projectUuid) {
+        // Clear any existing progress first
+        clearAllTestCaseProgress();
+        
         // First, check if testsuite already exists
         fetch(`/project/${projectUuid}/test-cases/check/`, {
             method: 'GET',
@@ -479,26 +533,35 @@
                         { progress: 95, message: 'Sắp hoàn thành...', duration: 1000 }
                     ];
 
-                    let currentStage = 0;
-                    let progressInterval;
-
-                    function updateProgress() {
-                        if (currentStage < progressStages.length) {
-                            const stage = progressStages[currentStage];
-                            document.getElementById('testCaseProgressBar').style.width = stage.progress + '%';
-                            document.getElementById('testCaseStatusMessage').textContent = stage.message;
-
-                            currentStage++;
-                            setTimeout(updateProgress, stage.duration);
-                        } else {
-                            // Keep at 95% until actual completion
-                            document.getElementById('testCaseProgressBar').style.width = '95%';
-                            document.getElementById('testCaseStatusMessage').textContent = 'Đang chờ hoàn thành...';
-                        }
+                    // Prevent multiple progress bars from running
+                    if (isTestCaseProgressRunning) {
+                        console.log('Test case progress already running, skipping...');
+                        return;
                     }
+                    
+                    isTestCaseProgressRunning = true;
+                    let currentStage = 0;
+                    let accumulatedDelay = 0;
 
-                    // Start the staged progress
-                    setTimeout(updateProgress, 500);
+                    // Schedule all progress stages upfront to prevent overlap
+                    progressStages.forEach((stage, index) => {
+                        accumulatedDelay += (index === 0 ? 500 : progressStages[index - 1].duration);
+                        const timeoutId = setTimeout(() => {
+                            // Only update if still running and not cleared
+                            if (isTestCaseProgressRunning && currentStage === index) {
+                                document.getElementById('testCaseProgressBar').style.width = stage.progress + '%';
+                                document.getElementById('testCaseStatusMessage').textContent = stage.message;
+                                currentStage++;
+                                
+                                // If this is the last stage, keep at 95%
+                                if (index === progressStages.length - 1) {
+                                    document.getElementById('testCaseProgressBar').style.width = '95%';
+                                    document.getElementById('testCaseStatusMessage').textContent = 'Đang chờ hoàn thành...';
+                                }
+                            }
+                        }, accumulatedDelay);
+                        testCaseProgressStages.push(timeoutId);
+                    });
 
                     fetch(`/project/${projectUuid}/test-cases/generate/`, {
                         method: 'POST',
@@ -519,6 +582,8 @@
                                 checkTestCaseStatusLoop(projectUuid);
                             } else {
                                 // Stop any ongoing progress updates
+                                isTestCaseProgressRunning = false;
+                                clearAllTestCaseProgress();
                                 document.getElementById('testCaseStatusText').textContent = 'Error';
                                 document.getElementById('testCaseStatusMessage').textContent = data.message;
                                 document.getElementById('testCaseStatusIndicator').innerHTML = `
@@ -530,6 +595,8 @@
                         })
                         .catch(error => {
                             console.error('Error:', error);
+                            isTestCaseProgressRunning = false;
+                            clearAllTestCaseProgress();
                             document.getElementById('testCaseStatusText').textContent = 'Error';
                             document.getElementById('testCaseStatusMessage').textContent = 'An error occurred while starting test case generation.';
                             document.getElementById('testCaseStatusIndicator').innerHTML = `
@@ -542,9 +609,12 @@
             })
             .catch(error => {
                 console.error('Error checking test suite:', error);
+                // Clear any existing progress before starting new one
+                clearAllTestCaseProgress();
                 // If check fails, proceed with generation as fallback
                 document.getElementById('testCaseStatusText').textContent = 'Đang bắt đầu tạo Test Cases...';
                 document.getElementById('testCaseStatusMessage').textContent = 'AI đang tạo test cases từ các sections đã chọn...';
+                document.getElementById('testCaseProgressBar').style.width = '0%';
                 
                 fetch(`/project/${projectUuid}/test-cases/generate/`, {
                     method: 'POST',
@@ -563,14 +633,36 @@
                         if (data.success) {
                             checkTestCaseStatusLoop(projectUuid);
                         } else {
+                            isTestCaseProgressRunning = false;
+                            clearAllTestCaseProgress();
                             document.getElementById('testCaseStatusText').textContent = 'Error';
                             document.getElementById('testCaseStatusMessage').textContent = data.message;
                         }
+                    })
+                    .catch(err => {
+                        console.error('Error generating test cases:', err);
+                        isTestCaseProgressRunning = false;
+                        clearAllTestCaseProgress();
+                        document.getElementById('testCaseStatusText').textContent = 'Error';
+                        document.getElementById('testCaseStatusMessage').textContent = 'An error occurred while generating test cases.';
                     });
             });
     }
 
     function checkTestCaseStatusLoop(projectUuid) {
+        // Clear staged progress (but keep the flag running since we're checking status)
+        // Only clear the staged progress timeouts, not the final interval
+        testCaseProgressStages.forEach(timeoutId => {
+            if (timeoutId) clearTimeout(timeoutId);
+        });
+        testCaseProgressStages = [];
+        
+        // Clear status check timeout if exists
+        if (testCaseStatusCheckTimeout) {
+            clearTimeout(testCaseStatusCheckTimeout);
+            testCaseStatusCheckTimeout = null;
+        }
+        
         let checking = false;
         const checkStatus = () => {
             if (checking) return; // prevent overlap
@@ -579,13 +671,23 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.status === 'completed') {
-                        // Gradually complete the progress bar
+                        // Stop staged progress
+                        isTestCaseProgressRunning = false;
+                        
+                        // Clear any existing final interval
+                        if (testCaseFinalInterval) {
+                            clearInterval(testCaseFinalInterval);
+                            testCaseFinalInterval = null;
+                        }
+                        
+                        // Gradually complete the progress bar from 95% to 100%
                         let finalProgress = 95;
-                        const finalInterval = setInterval(() => {
+                        testCaseFinalInterval = setInterval(() => {
                             finalProgress += 1;
                             document.getElementById('testCaseProgressBar').style.width = finalProgress + '%';
                             if (finalProgress >= 100) {
-                                clearInterval(finalInterval);
+                                clearInterval(testCaseFinalInterval);
+                                testCaseFinalInterval = null;
                                 document.getElementById('testCaseStatusText').textContent = 'Hoàn thành tạo Test Cases!';
                                 document.getElementById('testCaseStatusMessage').textContent = 'Test cases đã được tạo thành công.';
                                 document.getElementById('testCaseStatusIndicator').innerHTML = `
@@ -605,9 +707,11 @@
                         // Continue checking - use 5 seconds after 1 minute wait
                         // Check message to determine polling interval
                         const pollingInterval = data.message && data.message.includes('polling') ? 5000 : 2000;
-                        setTimeout(() => { checking = false; checkStatus(); }, pollingInterval);
+                        testCaseStatusCheckTimeout = setTimeout(() => { checking = false; checkStatus(); }, pollingInterval);
                     } else {
-                        // Stop progress updates
+                        // Stop all progress updates
+                        isTestCaseProgressRunning = false;
+                        clearAllTestCaseProgress();
                         document.getElementById('testCaseStatusText').textContent = 'Error';
                         document.getElementById('testCaseStatusMessage').textContent = data.message;
                         document.getElementById('testCaseStatusIndicator').innerHTML = `
@@ -619,6 +723,9 @@
                 })
                 .catch(error => {
                     console.error('Error:', error);
+                    // Stop all progress on error
+                    isTestCaseProgressRunning = false;
+                    clearAllTestCaseProgress();
                     document.getElementById('testCaseStatusText').textContent = 'Error';
                     document.getElementById('testCaseStatusMessage').textContent = 'An error occurred while checking status.';
                     document.getElementById('testCaseStatusIndicator').innerHTML = `
@@ -631,7 +738,7 @@
         };
 
         // Start checking after 1 second
-        setTimeout(checkStatus, 1000);
+        testCaseStatusCheckTimeout = setTimeout(checkStatus, 1000);
     }
 
     function fetchTestCases(projectUuid) {
@@ -676,6 +783,12 @@
 
         // Store test cases globally
         allTestCases = testCases || [];
+        
+        // Check if any test cases are selected (from database)
+        const hasSelectedTestCases = allTestCases.some(tc => tc.is_selected === true);
+        if (hasSelectedTestCases) {
+            window.testCasesSelected = true;
+        }
 
         // Reset to first page
         currentTestCasesPage = 1;
@@ -745,6 +858,9 @@
                 ? testCase.full_test_case_data.id 
                 : (testCase.uuid || `test-case-${globalIndex}`);
             const checkboxId = `testCaseCheckbox_${globalIndex}`;
+            
+            // Check if test case is selected (from database)
+            const isSelected = testCase.is_selected === true;
 
             row.innerHTML = `
             <td class="text-center">
@@ -753,6 +869,7 @@
                        id="${checkboxId}"
                        data-test-case-id="${testCaseApiId}"
                        data-index="${globalIndex}"
+                       ${isSelected ? 'checked' : ''}
                        onchange="updateSelectedTestCasesCount()">
             </td>
             <td class="text-center">${globalIndex + 1}</td>
@@ -1004,10 +1121,10 @@
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Đang xử lý...';
 
-        // Prepare payload - không execute, chỉ select
+        // Prepare payload - set execute: true to mark test cases for execution
         const payload = {
             test_case_ids: testCaseIds,
-            execute: false
+            execute: true  // Set to true to mark test cases as selected for execution
         };
 
         // Send request

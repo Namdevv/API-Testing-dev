@@ -127,6 +127,10 @@ class GeneratedTestCase(models.Model):
     # Full test case data as JSON for flexibility
     test_case_data = models.JSONField(default=dict, blank=True, help_text="Complete test case data as JSON")
     
+    # Selection status
+    is_selected = models.BooleanField(default=False, help_text="Whether test case is selected by user")
+    execute = models.BooleanField(default=False, help_text="Whether test case should be executed")
+    
     # Metadata
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
