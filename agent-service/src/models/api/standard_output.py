@@ -1,3 +1,5 @@
+from typing import Union
+
 from pydantic import BaseModel
 
 
@@ -8,4 +10,4 @@ class ResultModel(BaseModel):
 
 class StandardOutputModel(BaseModel):
     result: ResultModel
-    data: dict
+    data: Union[dict, list, None] = None
