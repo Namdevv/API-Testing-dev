@@ -1,7 +1,9 @@
 # Standard library imports
 import json
+import logging
 import os
 import re
+import sys
 import threading
 import time
 import uuid
@@ -36,8 +38,27 @@ from .models import DocumentSection, ProjectDocument, UserProject, GeneratedTest
 # Disable SSL warnings for development
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
+# Setup logger for debug output
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
+# Create console handler if not exists
+if not logger.handlers:
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setLevel(logging.DEBUG)
+    formatter = logging.Formatter('[%(asctime)s] [%(levelname)s] %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
+
 # Constants
-DEBUG = False  # Set to False to disable debug prints
+DEBUG = True  # Set to False to disable debug prints
+
+def debug_print(message):
+    """Print debug message to both logger and stdout with flush"""
+    if DEBUG:
+        logger.debug(message)
+        print(message, flush=True)
+        sys.stdout.flush()
 MINIO_ENDPOINT = "minio-api.truong51972.id.vn"
 MINIO_ACCESS_KEY = "minioadmin"
 MINIO_SECRET_KEY = "minioadmin"
@@ -688,17 +709,26 @@ def project_list(request):
 
         headers = {
             'accept': 'application/json',
-            'X-Service-Name': 'agent-service'
+            'X-Service-Name': 'agent-service',
+            'Authorization': 'Basic YWRtaW46YWRtaW4='
         }
 
         # Update endpoint to include user_id
         user_projects_endpoint = f"{PROJECT_ALL_ENDPOINT}"
 
-        # Use retry mechanism for API calls
-        success, api_projects, error_msg = call_api_with_retry(
+        # Prepare request body for POST request
+        request_body = {
+            'user_id': str(request.user.id),
+            'page_no': 0,
+            'page_size': 0
+        }
+
+        # Use retry mechanism for API calls with POST method
+        success, api_response, error_msg = call_api_with_retry(
             url=user_projects_endpoint,
-            method='GET',
+            method='POST',
             headers=headers,
+            json_data=request_body,
             max_retries=2,
             retry_delay=1
         )
@@ -715,7 +745,38 @@ def project_list(request):
             return render(request, 'project/project_list.html', context)
 
         if DEBUG:
-            print(f"API Projects Response: {api_projects}")
+            print(f"API Projects Response: {api_response}")
+
+        # Parse response format: handle both wrapped format {result: {...}, data: {projects: [...]}} and direct list
+        api_projects = []
+        if isinstance(api_response, list):
+            # Direct list format
+            api_projects = api_response
+        elif isinstance(api_response, dict):
+            # Wrapped format: {result: {...}, data: {projects: [...]}}
+            result_info = api_response.get('result', {})
+            data = api_response.get('data', {})
+            api_projects = data.get('projects', [])
+            
+            # Check result code
+            result_code = result_info.get('code', [])
+            if result_code and result_code[0] != "0000":
+                error_msg = result_info.get('description', 'API returned error')
+                messages.error(request, f"Lỗi từ API: {error_msg}")
+                context = {
+                    'projects': [],
+                    'paginator': None,
+                    'api_count': 0,
+                    'api_error': True,
+                    'error_message': error_msg
+                }
+                return render(request, 'project/project_list.html', context)
+        else:
+            # Unknown format
+            api_projects = []
+
+        if DEBUG:
+            print(f"Parsed projects count: {len(api_projects)}")
 
         # Sync API projects to local database for sidebar
         for project_data in api_projects:
@@ -1733,10 +1794,11 @@ def api_create_project(request):
 def api_get_all_projects(request):
     """Lấy tất cả projects qua API"""
     if DEBUG:
-        print("=" * 80)
-        print("[DEBUG] api_get_all_projects - START")
-        print(f"[DEBUG] User ID: {request.user.id}")
-        print(f"[DEBUG] User: {request.user.username}")
+        timestamp = timezone.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+        debug_print("=" * 80)
+        debug_print(f"[DEBUG] [{timestamp}] api_get_all_projects - START")
+        debug_print(f"[DEBUG] User ID: {request.user.id}")
+        debug_print(f"[DEBUG] User: {request.user.username}")
     
     try:
         headers = {
@@ -1746,25 +1808,45 @@ def api_get_all_projects(request):
             'Authorization': 'Basic YWRtaW46YWRtaW4='
         }
 
-        # Get pagination parameters from request (GET params or default to 0 for all)
-        page_no = int(request.GET.get('page_no', 0))
-        page_size = int(request.GET.get('page_size', 0))
+        # Get parameters from request body (POST)
+        user_id = str(request.user.id)
+        page_no = 0
+        page_size = 0
+        
+        try:
+            if request.body:
+                data = json.loads(request.body)
+                user_id = data.get('user_id', user_id)
+                page_no = int(data.get('page_no', 0))
+                page_size = int(data.get('page_size', 0))
+        except:
+            # Fallback to GET params if body parsing fails
+            page_no = int(request.GET.get('page_no', 0))
+            page_size = int(request.GET.get('page_size', 0))
 
         request_body = {
-            'user_id': str(request.user.id),
+            'user_id': user_id,
             'page_no': page_no,
             'page_size': page_size
         }
 
         if DEBUG:
-            print(f"[DEBUG] Endpoint: {PROJECT_ALL_ENDPOINT}")
-            print(f"[DEBUG] Headers: {json.dumps(headers, indent=2, ensure_ascii=False)}")
-            print("-" * 80)
-            print("[DEBUG] ========== REQUEST BODY ==========")
-            print(json.dumps(request_body, indent=2, ensure_ascii=False))
-            print("[DEBUG] ==================================")
-            print("-" * 80)
-            print(f"[DEBUG] Making POST request...")
+            debug_print("-" * 80)
+            debug_print("[DEBUG] ========== REQUEST INFO ==========")
+            debug_print(f"[DEBUG] Method: POST")
+            debug_print(f"[DEBUG] URL: {PROJECT_ALL_ENDPOINT}")
+            debug_print(f"[DEBUG] Headers:")
+            for key, value in headers.items():
+                # Mask authorization token for security
+                if key.lower() == 'authorization':
+                    debug_print(f"  {key}: {value[:20]}...")
+                else:
+                    debug_print(f"  {key}: {value}")
+            debug_print(f"[DEBUG] Request Body:")
+            debug_print(json.dumps(request_body, indent=2, ensure_ascii=False))
+            debug_print("[DEBUG] ==================================")
+            debug_print("-" * 80)
+            debug_print(f"[DEBUG] Making POST request to: {PROJECT_ALL_ENDPOINT}")
 
         response = requests.post(
             PROJECT_ALL_ENDPOINT,
@@ -1775,42 +1857,84 @@ def api_get_all_projects(request):
         )
 
         if DEBUG:
-            print("-" * 80)
-            print(f"[DEBUG] Response Status Code: {response.status_code}")
-            print(f"[DEBUG] Response Headers: {json.dumps(dict(response.headers), indent=2, ensure_ascii=False)}")
-            print("-" * 80)
+            debug_print("-" * 80)
+            debug_print("[DEBUG] ========== RESPONSE INFO ==========")
+            debug_print(f"[DEBUG] Status Code: {response.status_code}")
+            debug_print(f"[DEBUG] Response Headers:")
+            for key, value in response.headers.items():
+                debug_print(f"  {key}: {value}")
+            debug_print(f"[DEBUG] Response Size: {len(response.content)} bytes")
+            debug_print("-" * 80)
 
         if response.status_code == 200:
-            response_data = response.json()
             if DEBUG:
-                print("[DEBUG] ========== API RESPONSE ==========")
-                print(json.dumps(response_data, indent=2, ensure_ascii=False))
-                print("[DEBUG] ==================================")
-                print("-" * 80)
+                debug_print("[DEBUG] ========== RAW RESPONSE ==========")
+                try:
+                    # Try to print raw response text first
+                    debug_print(f"[DEBUG] Raw Response Text (first 500 chars):")
+                    debug_print(response.text[:500])
+                    if len(response.text) > 500:
+                        debug_print(f"... (truncated, total length: {len(response.text)} chars)")
+                except:
+                    debug_print("[DEBUG] Could not read raw response text")
+                debug_print("-" * 80)
             
-            # Extract data from response structure
-            # Response structure: { "result": {...}, "data": { "projects": [...] } }
-            result_info = response_data.get('result', {})
-            data = response_data.get('data', {})
-            projects = data.get('projects', [])
-            
-            # Check result code
-            result_code = result_info.get('code', [])
-            result_description = result_info.get('description', '')
+            try:
+                response_data = response.json()
+            except json.JSONDecodeError as e:
+                if DEBUG:
+                    debug_print(f"[DEBUG] JSON Decode Error: {str(e)}")
+                    debug_print(f"[DEBUG] Response text: {response.text}")
+                return JsonResponse({
+                    'success': False,
+                    'message': f'Invalid JSON response: {str(e)}'
+                })
             
             if DEBUG:
-                print("[DEBUG] ========== PARSED RESPONSE ==========")
-                print(f"[DEBUG] Result Code: {result_code}")
-                print(f"[DEBUG] Result Description: {result_description}")
-                print(f"[DEBUG] Number of projects: {len(projects)}")
-                print("[DEBUG] Projects data:")
-                print(json.dumps(projects, indent=2, ensure_ascii=False))
-                print("[DEBUG] =====================================")
-                print("[DEBUG] api_get_all_projects - SUCCESS")
-                print("=" * 80)
+                debug_print("[DEBUG] ========== PARSED JSON RESPONSE ==========")
+                debug_print(json.dumps(response_data, indent=2, ensure_ascii=False))
+                debug_print("[DEBUG] ============================================")
+                debug_print("-" * 80)
             
-            # Check if API returned success code
-            if result_code and result_code[0] == "0000":
+            # Handle different response formats:
+            # 1. Direct list format from agent-service: [...]
+            # 2. Wrapped format from gateway: { "result": {...}, "data": { "projects": [...] } }
+            projects = []
+            result_code = None
+            result_description = ''
+            
+            if isinstance(response_data, list):
+                # Direct list format
+                projects = response_data
+                result_description = 'Projects retrieved successfully'
+            elif isinstance(response_data, dict):
+                # Wrapped format
+                result_info = response_data.get('result', {})
+                data = response_data.get('data', {})
+                projects = data.get('projects', [])
+                result_code = result_info.get('code', [])
+                result_description = result_info.get('description', '')
+            else:
+                # Unknown format
+                projects = []
+            
+            if DEBUG:
+                debug_print("[DEBUG] ========== PROCESSED DATA ==========")
+                debug_print(f"[DEBUG] Response Format: {'List' if isinstance(response_data, list) else 'Wrapped' if isinstance(response_data, dict) else 'Unknown'}")
+                debug_print(f"[DEBUG] Result Code: {result_code}")
+                debug_print(f"[DEBUG] Result Description: {result_description}")
+                debug_print(f"[DEBUG] Number of projects: {len(projects)}")
+                if projects:
+                    debug_print(f"[DEBUG] First project sample:")
+                    debug_print(json.dumps(projects[0] if len(projects) > 0 else {}, indent=2, ensure_ascii=False))
+                    if len(projects) > 1:
+                        debug_print(f"[DEBUG] ... and {len(projects) - 1} more projects")
+                debug_print("[DEBUG] ===================================")
+                debug_print("[DEBUG] api_get_all_projects - SUCCESS")
+                debug_print("=" * 80)
+            
+            # Return success if we got projects or if result code indicates success
+            if projects or (result_code and result_code[0] == "0000") or not result_code:
                 return JsonResponse({
                     'success': True,
                     'message': result_description or 'Projects retrieved successfully via API',
@@ -1821,9 +1945,9 @@ def api_get_all_projects(request):
                 # API returned error code
                 error_msg = f"API returned error code: {result_code}, description: {result_description}"
                 if DEBUG:
-                    print(f"[DEBUG] API returned error code!")
-                    print(f"[DEBUG] {error_msg}")
-                    print("=" * 80)
+                    debug_print(f"[DEBUG] API returned error code!")
+                    debug_print(f"[DEBUG] {error_msg}")
+                    debug_print("=" * 80)
                 
                 return JsonResponse({
                     'success': False,
@@ -1834,17 +1958,22 @@ def api_get_all_projects(request):
         else:
             error_msg = f"API call failed with status {response.status_code}: {response.text}"
             if DEBUG:
-                print("[DEBUG] ========== ERROR RESPONSE ==========")
-                print(f"[DEBUG] Status Code: {response.status_code}")
+                debug_print("[DEBUG] ========== ERROR RESPONSE ==========")
+                debug_print(f"[DEBUG] Status Code: {response.status_code}")
+                debug_print(f"[DEBUG] Status Text: {response.reason}")
+                debug_print(f"[DEBUG] Response URL: {response.url}")
                 try:
                     error_response = response.json()
-                    print("[DEBUG] Response JSON:")
-                    print(json.dumps(error_response, indent=2, ensure_ascii=False))
+                    debug_print("[DEBUG] Error Response JSON:")
+                    debug_print(json.dumps(error_response, indent=2, ensure_ascii=False))
                 except:
-                    print(f"[DEBUG] Response Text: {response.text}")
-                print("[DEBUG] ====================================")
-                print("[DEBUG] api_get_all_projects - FAILED")
-                print("=" * 80)
+                    debug_print(f"[DEBUG] Response Text (first 1000 chars):")
+                    debug_print(response.text[:1000])
+                    if len(response.text) > 1000:
+                        debug_print(f"... (truncated, total length: {len(response.text)} chars)")
+                debug_print("[DEBUG] ====================================")
+                debug_print("[DEBUG] api_get_all_projects - FAILED")
+                debug_print("=" * 80)
             
             return JsonResponse({
                 'success': False,
@@ -1853,9 +1982,12 @@ def api_get_all_projects(request):
 
     except requests.exceptions.Timeout:
         if DEBUG:
-            print("[DEBUG] Exception: requests.exceptions.Timeout")
-            print("[DEBUG] api_get_all_projects - TIMEOUT")
-            print("=" * 80)
+            debug_print("[DEBUG] ========== TIMEOUT EXCEPTION ==========")
+            debug_print(f"[DEBUG] Exception Type: requests.exceptions.Timeout")
+            debug_print(f"[DEBUG] Endpoint: {PROJECT_ALL_ENDPOINT}")
+            debug_print(f"[DEBUG] Timeout: 30 seconds")
+            debug_print("[DEBUG] api_get_all_projects - TIMEOUT")
+            debug_print("=" * 80)
         
         return JsonResponse({
             'success': False,
@@ -1863,11 +1995,18 @@ def api_get_all_projects(request):
         })
     except requests.exceptions.RequestException as e:
         if DEBUG:
-            print(f"[DEBUG] Exception: requests.exceptions.RequestException")
-            print(f"[DEBUG] Error: {str(e)}")
-            print(f"[DEBUG] Error Type: {type(e).__name__}")
-            print("[DEBUG] api_get_all_projects - REQUEST EXCEPTION")
-            print("=" * 80)
+            debug_print("[DEBUG] ========== REQUEST EXCEPTION ==========")
+            debug_print(f"[DEBUG] Exception Type: requests.exceptions.RequestException")
+            debug_print(f"[DEBUG] Error: {str(e)}")
+            debug_print(f"[DEBUG] Error Class: {type(e).__name__}")
+            debug_print(f"[DEBUG] Endpoint: {PROJECT_ALL_ENDPOINT}")
+            if hasattr(e, 'request'):
+                debug_print(f"[DEBUG] Request URL: {e.request.url if e.request else 'N/A'}")
+                debug_print(f"[DEBUG] Request Method: {e.request.method if e.request else 'N/A'}")
+            import traceback
+            debug_print(f"[DEBUG] Traceback:\n{traceback.format_exc()}")
+            debug_print("[DEBUG] api_get_all_projects - REQUEST EXCEPTION")
+            debug_print("=" * 80)
         
         return JsonResponse({
             'success': False,
@@ -1875,13 +2014,14 @@ def api_get_all_projects(request):
         })
     except Exception as e:
         if DEBUG:
-            print(f"[DEBUG] Exception: Unexpected error")
-            print(f"[DEBUG] Error: {str(e)}")
-            print(f"[DEBUG] Error Type: {type(e).__name__}")
+            debug_print("[DEBUG] ========== UNEXPECTED ERROR ==========")
+            debug_print(f"[DEBUG] Exception Type: {type(e).__name__}")
+            debug_print(f"[DEBUG] Error: {str(e)}")
+            debug_print(f"[DEBUG] Endpoint: {PROJECT_ALL_ENDPOINT}")
             import traceback
-            print(f"[DEBUG] Traceback:\n{traceback.format_exc()}")
-            print("[DEBUG] api_get_all_projects - UNEXPECTED ERROR")
-            print("=" * 80)
+            debug_print(f"[DEBUG] Full Traceback:\n{traceback.format_exc()}")
+            debug_print("[DEBUG] api_get_all_projects - UNEXPECTED ERROR")
+            debug_print("=" * 80)
         
         return JsonResponse({
             'success': False,
