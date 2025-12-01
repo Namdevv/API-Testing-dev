@@ -9,7 +9,7 @@ from sqlmodel import Field, Session, SQLModel, select
 
 from src import repositories
 from src.repositories.project.project_repository import ProjectRepository
-from src.settings import get_engine, get_now_vn
+from src.settings import get_db_engine, get_now_vn
 
 
 class DocumentMetadataRepository(SQLModel, table=True):
@@ -45,7 +45,6 @@ class DocumentMetadataRepository(SQLModel, table=True):
     raw_doc_path: str = Field(
         default_factory=str,
         min_length=3,
-        max_length=512,
         description="document name",
     )
 
@@ -77,20 +76,18 @@ class DocumentMetadataRepository(SQLModel, table=True):
     def get_by_project_id(
         cls, project_id: str, session: Optional[Session] = None
     ) -> list["DocumentMetadataRepository"]:
-        session = session or Session(get_engine())
+        session = session or Session(get_db_engine())
         with session:
             documents = session.exec(
-                select(repositories.DocumentMetadataRepository).where(
-                    repositories.DocumentMetadataRepository.project_id == project_id
-                )
+                select(cls).where(cls.project_id == project_id)
             ).all()
         return documents
 
     @classmethod
     def delete_by_id(cls, doc_id: str, session: Optional[Session] = None) -> bool:
-        session = session or Session(get_engine())
+        session = session or Session(get_db_engine())
         with session:
-            document = session.get(repositories.DocumentMetadataRepository, doc_id)
+            document = session.get(cls, doc_id)
             document_contents = session.exec(
                 select(repositories.DocumentContentRepository).where(
                     repositories.DocumentContentRepository.doc_id == doc_id
@@ -113,7 +110,7 @@ class DocumentMetadataRepository(SQLModel, table=True):
         document_metadata_repos: list["DocumentMetadataRepository"],
         session: Optional[Session] = None,
     ):
-        session = session or Session(get_engine())
+        session = session or Session(get_db_engine())
         with session:
             for document_metadata in document_metadata_repos:
                 session.add(document_metadata)
@@ -122,3 +119,19 @@ class DocumentMetadataRepository(SQLModel, table=True):
             ProjectRepository.update_updated_at(
                 document_metadata_repos[0].project_id, session=session
             )
+
+    @classmethod
+    def get_doc_id_by_doc_name(
+        cls,
+        project_id: str,
+        doc_name: str,
+        session: Optional[Session] = None,
+    ) -> Optional[str]:
+        session = session or Session(get_db_engine())
+
+        with session:
+            statement = select(cls.doc_id).where(
+                (cls.project_id == project_id) & (cls.doc_name == doc_name)
+            )
+            results = session.exec(statement).first()
+            return results

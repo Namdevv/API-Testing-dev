@@ -22,7 +22,7 @@ def docs_preprocessing(
     workflow = DocsPreprocessingWorkflow()
 
     result = workflow.invoke(item)
-    return DocsPreProcessingResponseModel(doc_id=result["messages"][-1].content)
+    return DocsPreProcessingResponseModel(doc_id=result["extra_parameters"]["doc_id"])
 
 
 class GetFrInfosRequestModel(BaseModel):

@@ -1,0 +1,5 @@
+docling==2.61.2
+
+unstructured==0.18.20
+networkx==3.5
+openpyxl==3.1.5

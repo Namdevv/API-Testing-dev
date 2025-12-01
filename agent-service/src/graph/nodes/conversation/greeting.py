@@ -19,12 +19,7 @@ class Greeting(BaseAgentService):
         user_input = state.user_input
         messages = state.messages
 
-        invoke_input = {
-            "input": user_input,
-            "chat_history": messages,
-        }
-
-        response = self.run(invoke_input)
+        response = self.run(user_input, messages)
 
         logging.info("Greeting node called")
 

@@ -6,7 +6,7 @@ from pydantic import (
 )
 from sqlmodel import Field, Session, SQLModel, select
 
-from src.settings import get_engine
+from src.settings import get_db_engine
 
 
 class DocumentFRToContentRepository(SQLModel, table=True):
@@ -45,7 +45,7 @@ class DocumentFRToContentRepository(SQLModel, table=True):
         cls, fr_info_id: str, session: Optional[Session] = None
     ) -> bool:
 
-        session = session or Session(get_engine())
+        session = session or Session(get_db_engine())
         with session:
             fr_to_contents = session.exec(
                 select(cls).where(cls.fr_info_id == fr_info_id)

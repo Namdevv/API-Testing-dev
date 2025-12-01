@@ -11,7 +11,7 @@ from src import repositories
 from src.base.service.base_agent_service import BaseAgentService
 from src.cache.cache_func_wrapper import cache_func_wrapper
 from src.enums.enums import LanguageEnum
-from src.settings import get_engine
+from src.settings import get_db_engine
 
 
 class FrAnnotationNode(BaseAgentService):
@@ -30,8 +30,8 @@ class FrAnnotationNode(BaseAgentService):
     }
 
     @cache_func_wrapper
-    def call_agent(self, input: str, chat_history: list[AIMessage] = []) -> AIMessage:
-        response = self.run({"input": input, "chat_history": chat_history})
+    def call_agent(self, human: str, messages: list[AIMessage] = []) -> AIMessage:
+        response = self.run(human, messages)
         return response
 
     def analyze_tocs_documents(
@@ -83,11 +83,11 @@ class FrAnnotationNode(BaseAgentService):
 
     @validate_call
     def __call__(self, state) -> Dict[str, Any]:
-        self.set_system_prompt(state.lang)
+        self.set_system_lang(state.lang)
         project_id = state.project_id
 
         grouped_frs = {}
-        with Session(get_engine()) as session:
+        with Session(get_db_engine()) as session:
             if not repositories.ProjectRepository.is_exist(
                 project_id=project_id, session=session
             ):

@@ -11,8 +11,6 @@ from dotenv import load_dotenv
 from minio import Minio
 from sqlmodel import SQLModel, create_engine
 
-from src.common.check_google_api_tokens import check_google_api_tokens
-
 load_dotenv()
 
 ENVIRONMENT = os.getenv("ENVIRONMENT", "dev")
@@ -40,7 +38,7 @@ POSTGRES_USER = os.getenv("POSTGRES_USER", "admin")
 POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "admin")
 POSTGRES_HOST = os.getenv("POSTGRES_HOST", "localhost")
 POSTGRES_PORT = os.getenv("POSTGRES_PORT", "5432")
-DATABASE_URL = f"postgresql+psycopg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
+POSTGRES_URL = f"postgresql+psycopg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
 
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
 REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
@@ -50,16 +48,9 @@ MINIO_URL = os.getenv("MINIO_URL", "localhost:9000")
 MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY", "minioadmin")
 MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY", "minioadmin")
 
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 
 EMBEDDING_DIM = 3072
-
-GOOGLE_API_KEYS = None
-
-with open("env/google_api_keys.txt", "r") as f:
-    GOOGLE_API_KEYS = [line.strip() for line in f.readlines() if line.strip()]
-
-    if ENVIRONMENT != "dev":
-        check_google_api_tokens(GOOGLE_API_KEYS)
 
 
 def initialize_nltk():
@@ -67,11 +58,9 @@ def initialize_nltk():
     nltk.download("stopwords", quiet=True)
 
 
-initialize_nltk()
-
-
-def get_minio_client():
-    logging.info(f"Connecting to MinIO at '{MINIO_URL}'")
+def get_minio_client(verbose: bool = False):
+    if verbose:
+        logging.info(f"Connecting to MinIO at '{MINIO_URL}'")
     return Minio(
         MINIO_URL,
         access_key=MINIO_ACCESS_KEY,
@@ -81,32 +70,39 @@ def get_minio_client():
 
 
 # --- Hàm khởi tạo ---
-def get_engine():
-    logging.info(f"Connecting to database at '{DATABASE_URL}'")
-    return create_engine(DATABASE_URL)
+def get_db_engine(verbose: bool = False):
+    if verbose:
+        logging.info(f"Connecting to database at '{POSTGRES_URL}'")
+    return create_engine(POSTGRES_URL)
 
 
-def create_vector_extension():
+def create_vector_extension(verbose: bool = False):
     """Create the 'vector' extension in Postgres if it does not exist."""
     from sqlalchemy import text
 
-    engine = get_engine()
+    if verbose:
+        logging.info("Creating 'vector' extension in Postgres if not exists...")
+
+    engine = get_db_engine()
     with engine.connect() as conn:
         conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector;"))
         conn.commit()
 
 
-create_vector_extension()
-
-
 # initialize database
-def init_db():
+def init_db(verbose: bool = False):
     from src import repositories  # noqa: F401
 
-    SQLModel.metadata.create_all(get_engine())
+    if verbose:
+        logging.info("Initializing database and creating tables...")
+    SQLModel.metadata.create_all(get_db_engine(verbose))
 
 
-def get_redis_client():
+def get_redis_client(verbose: bool = False):
+    if verbose:
+        logging.info(
+            f"Connecting to Redis at '{REDIS_HOST}:{REDIS_PORT}', DB {REDIS_DB}"
+        )
     return redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=REDIS_DB)
 
 
@@ -192,3 +188,11 @@ LOGGING_CONFIG = {
 
 def setup_logging():
     logging.config.dictConfig(LOGGING_CONFIG)
+
+
+def setup(verbose: bool = False):
+    setup_logging()
+    initialize_nltk()
+    create_vector_extension(verbose)
+    init_db(verbose)
+    get_redis_client(verbose)

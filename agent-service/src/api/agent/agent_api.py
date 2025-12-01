@@ -8,7 +8,7 @@ from src.graph.workflows.simple_qa import SimpleQAWorkflow
 
 # from src.models.agent.agent_state_model import AgentStateModel
 from src.models import DocsPreProcessingStateModel
-from src.settings import get_engine
+from src.settings import get_db_engine
 
 # Load database configuration from environment variables (Docker Compose)
 
@@ -19,7 +19,7 @@ ai_agent = None  # Global variable to hold the AI agent instance
 async def lifespan(app: FastAPI):
     global ai_agent
 
-    SQLModel.metadata.create_all(get_engine())
+    SQLModel.metadata.create_all(get_db_engine())
 
     yield
 

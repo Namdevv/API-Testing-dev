@@ -6,10 +6,10 @@ from pydantic import (
     ConfigDict,
 )
 from sqlalchemy import Column
-from sqlmodel import Field, Session, SQLModel
+from sqlmodel import Field, Session, SQLModel, select
 
 from src.base.service.base_embedding_service import BaseEmbeddingService
-from src.settings import EMBEDDING_DIM, get_engine
+from src.settings import EMBEDDING_DIM, get_db_engine
 
 
 class DocumentContentRepository(SQLModel, table=True):
@@ -67,7 +67,7 @@ class DocumentContentRepository(SQLModel, table=True):
         data: List["DocumentContentRepository"],
     ) -> List["DocumentContentRepository"]:
 
-        embedding = BaseEmbeddingService().get_embedding()
+        embedding = BaseEmbeddingService()
 
         vectors = embedding.embed_documents([item.text for item in data])
 
@@ -75,9 +75,25 @@ class DocumentContentRepository(SQLModel, table=True):
         for i, item in enumerate(data):
             item.vector = vectors[i]
 
-        with Session(get_engine()) as session:
+        with Session(get_db_engine()) as session:
             session.add_all(data)
             session.commit()
             for record in data:
                 session.refresh(record)
         return data
+
+    @classmethod
+    def get_doc_by_heading(
+        cls,
+        doc_id: str,
+        heading: str,
+        session: Optional[Session] = None,
+    ) -> Optional["DocumentContentRepository"]:
+        session = session or Session(get_db_engine())
+
+        with session:
+            statement = select(cls).where(
+                (cls.heading == heading) & (cls.doc_id == doc_id)
+            )
+            results = session.exec(statement).all()
+            return results

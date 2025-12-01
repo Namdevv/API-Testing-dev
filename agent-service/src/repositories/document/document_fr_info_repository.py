@@ -7,8 +7,7 @@ from sqlmodel import Field, Session, SQLModel, select
 from src.repositories.document.document_fr_to_content_repository import (
     DocumentFRToContentRepository,
 )
-from src.repositories.project.project_repository import ProjectRepository
-from src.settings import get_engine
+from src.settings import get_db_engine
 
 
 class DocumentFRInfoRepository(SQLModel, table=True):
@@ -53,6 +52,9 @@ class DocumentFRInfoRepository(SQLModel, table=True):
         }
     )
 
+    def get_fr_group_name(self) -> str:
+        return self.fr_group.split(":")[1].strip()
+
     @model_validator(mode="after")
     def check_fr_info_id(self):
         if not self.fr_info_id:
@@ -63,12 +65,22 @@ class DocumentFRInfoRepository(SQLModel, table=True):
 
     @classmethod
     def get_all_by_project_id(
-        cls, project_id: str, session: Optional[Session] = None
+        cls,
+        project_id: str,
+        is_selected: bool = None,
+        session: Optional[Session] = None,
     ) -> list["DocumentFRInfoRepository"]:
-        session = session or Session(get_engine())
+        session = session or Session(get_db_engine())
 
         with session:
-            statement = select(cls).where(cls.project_id == project_id)
+            statement = select(cls).where(
+                (cls.project_id == project_id)
+                & (
+                    (cls.is_selected == is_selected)
+                    if is_selected is not None
+                    else True
+                )
+            )
             results = session.exec(statement).all()
             return results
 
@@ -79,7 +91,7 @@ class DocumentFRInfoRepository(SQLModel, table=True):
         is_selected: bool = True,
         session: Optional[Session] = None,
     ) -> bool:
-        session = session or Session(get_engine())
+        session = session or Session(get_db_engine())
 
         with session:
             statement = select(cls).where(cls.fr_info_id.in_(fr_info_ids))
@@ -95,7 +107,7 @@ class DocumentFRInfoRepository(SQLModel, table=True):
     def delete_by_project_id(
         cls, project_id: str, session: Optional[Session] = None
     ) -> bool:
-        session = session or Session(get_engine())
+        session = session or Session(get_db_engine())
         with session:
             statement = select(cls).where(cls.project_id == project_id)
             results = session.exec(statement).all()
@@ -103,3 +115,19 @@ class DocumentFRInfoRepository(SQLModel, table=True):
                 DocumentFRToContentRepository.delete_by_fr_info_id(fr_info.fr_info_id)
                 session.delete(fr_info)
             session.commit()
+
+    @classmethod
+    def get_all_fr_groups(
+        cls,
+        project_id: str,
+        get_selected: bool = False,
+        session: Optional[Session] = None,
+    ) -> list[str]:
+        session = session or Session(get_db_engine())
+
+        with session:
+            statement = select(cls.fr_group).where(
+                (cls.project_id == project_id) & (cls.is_selected == get_selected)
+            )
+            results = session.exec(statement).all()
+            return results

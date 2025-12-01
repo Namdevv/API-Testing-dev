@@ -1,14 +1,19 @@
 # ruff: noqa # disable ruff validate
-from src.repositories.document.document_metadata_repository import (
+from .document.document_metadata_repository import (
     DocumentMetadataRepository,
 )
-from src.repositories.document.document_content_repository import (
+from .document.document_content_repository import (
     DocumentContentRepository,
 )
-from src.repositories.project.project_repository import ProjectRepository
-from src.repositories.document.document_fr_info_repository import (
+from .project.project_repository import ProjectRepository
+from .document.document_fr_info_repository import (
     DocumentFRInfoRepository,
 )
-from src.repositories.document.document_fr_to_content_repository import (
+from .document.document_fr_to_content_repository import (
     DocumentFRToContentRepository,
 )
+
+from .test_entity.test_case_repository import TestCaseRepository, ApiInfoModel
+from .test_entity.test_suite_repository import TestSuiteRepository
+from .test_entity.test_case_report_repository import TestCaseReportRepository
+from .test_entity.test_suite_report_repository import TestSuiteReportRepository

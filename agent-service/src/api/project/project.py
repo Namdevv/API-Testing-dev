@@ -2,32 +2,68 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from src import repositories
+from src.models import StandardOutputModel
 
-router = APIRouter(prefix="/project", tags=["Project"])
+router = APIRouter(prefix="/projects", tags=["Project"])
 
 
 class CreateProjectResponseModel(BaseModel):
     project_id: str
 
 
-@router.post("/create")
+@router.put("/")
 def create_project(
     project: repositories.ProjectRepository,
-) -> CreateProjectResponseModel:
+) -> StandardOutputModel:
 
     project = project.create()
-    return CreateProjectResponseModel(project_id=project.project_id)
+
+    response = StandardOutputModel(
+        result={
+            "code": ["0000"],
+            "description": "Project created successfully",
+        },
+        data={"project_id": project.project_id},
+    )
+    return response
 
 
-@router.get("/all/{user_id}")
-def get_all_projects(user_id: str) -> list[repositories.ProjectRepository]:
-    projects = repositories.ProjectRepository().get_all(user_id=user_id)
-    return projects
+class GetAllProjectsResponseModel(BaseModel):
+    user_id: str
+    page_no: int
+    page_size: int
 
 
-@router.post("/delete/{project_id}")
-def delete_project(project_id: str) -> None:
-    if repositories.ProjectRepository.delete_by_id(project_id):
-        return {"message": "Project deleted successfully"}
+@router.post("/all")
+def get_all_projects(
+    items: GetAllProjectsResponseModel,
+) -> StandardOutputModel:
+    projects = repositories.ProjectRepository().get_all(user_id=items.user_id)
+
+    response = StandardOutputModel(
+        result={
+            "code": ["0000"],
+            "description": "Projects retrieved successfully",
+        },
+        data={"projects": projects},
+    )
+    return response
+
+
+class DeleteProjectResponseModel(BaseModel):
+    project_id: str
+
+
+@router.delete("/")
+def delete_project(items: DeleteProjectResponseModel) -> StandardOutputModel:
+    if repositories.ProjectRepository.delete_by_id(items.project_id):
+        response = StandardOutputModel(
+            result={
+                "code": ["0000"],
+                "description": "Project deleted successfully",
+            },
+            data=items.model_dump(),
+        )
+        return response
 
     raise HTTPException(status_code=400, detail="Project not found")

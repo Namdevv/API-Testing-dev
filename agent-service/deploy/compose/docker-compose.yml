@@ -4,6 +4,7 @@ services:
     restart: on-failure:5
     volumes:
       - backend_data:/backend_data
+      - ./env/:/backend_data/env/
     environment:
       - POSTGRES_DB=${POSTGRES_DB:-backend_database}
       - POSTGRES_USER=${POSTGRES_USER:-admin}
@@ -29,9 +30,10 @@ services:
               capabilities: [gpu]
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.agent.rule=PathPrefix(`/agent-service/agent`)"
-      - "traefik.http.routers.agent.entrypoints=api-t"
-      - "traefik.http.services.agent.loadbalancer.server.port=8000"
+      # Docs Router
+      - "traefik.http.services.agent-api.loadbalancer.server.port=8000"
+      - "traefik.http.routers.agent-api.rule=PathPrefix(`/agent-service/agent`) || Header(`X-Service-Name`, `agent-service`)"
+      - "traefik.http.routers.agent-api.entrypoints=api-t"
     networks:
       - gateway_net
       - local_net
