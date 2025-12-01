@@ -105,7 +105,7 @@ class TestCaseGenerator(BaseAgentService):
         }
 
         logging.info(
-            f"Generated test cases for FR group: {current_fr.get_fr_group_name()}"
+            f"Generated test cases for FR group: {current_fr.get_fr_group_name()}, total test cases: {len(testcases)}"
         )
         return state
 
