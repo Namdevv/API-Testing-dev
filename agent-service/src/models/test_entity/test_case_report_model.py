@@ -1,8 +1,11 @@
 import uuid
 from datetime import datetime
+from typing import Optional
 
 from sqlalchemy import JSON, Column
-from sqlmodel import Field, SQLModel
+from sqlmodel import Field, Relationship, SQLModel
+
+from .test_case_model import TestCaseModel
 
 
 class TestCaseReportModel(SQLModel):
@@ -63,3 +66,8 @@ class TestCaseReportModel(SQLModel):
     end_time: datetime = Field(
         description="End time of the test case execution.",
     )
+
+
+class TestCaseReportReadModel(TestCaseReportModel):
+
+    test_case: Optional[TestCaseModel] = None

@@ -1,8 +1,10 @@
 from typing import Optional
 
-from sqlmodel import Session, select
+from sqlalchemy.orm import joinedload
+from sqlmodel import Relationship, Session, select
 
-from src.models import TestCaseReportModel
+from src.models import TestCaseReportModel, TestCaseReportReadModel
+from src.repositories.test_entity.test_case_repository import TestCaseRepository
 from src.settings import get_db_engine
 
 
@@ -11,18 +13,26 @@ class TestCaseReportRepository(TestCaseReportModel, table=True):
 
     __tablename__ = "test_case_report"
 
+    test_case: TestCaseRepository = Relationship()
+
     @classmethod
     def get_all_by_test_suite_report_id(
         cls,
         test_suite_report_id: str,
         session: Optional[Session] = None,
-    ) -> list["TestCaseReportRepository"]:
+    ) -> list["TestCaseReportReadModel"]:
         session = session or Session(get_db_engine())
 
         with session:
-            statement = select(cls).where(
-                cls.test_suite_report_id == test_suite_report_id
+            statement = (
+                select(cls)
+                .options(joinedload(cls.test_case))
+                .where(cls.test_suite_report_id == test_suite_report_id)
             )
-            results = session.exec(statement).all()
+            results_set = session.exec(statement).all()
 
+        results = []
+
+        for result in results_set:
+            results.append(TestCaseReportReadModel.model_validate(result))
         return results
