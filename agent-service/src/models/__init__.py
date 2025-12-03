@@ -16,3 +16,4 @@ from .test_entity.test_case_report_model import (
 )
 from .test_entity.test_suite_model import TestSuiteModel
 from .test_entity.test_suite_report_model import TestSuiteReportModel
+from .project.project_model import ProjectModel
