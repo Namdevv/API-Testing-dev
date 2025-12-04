@@ -691,18 +691,6 @@
                     document.getElementById('testCaseStatusMessage').textContent = 'AI đang tạo test cases từ các sections đã chọn...';
                     document.getElementById('testCaseProgressBar').style.width = '0%';
 
-                    // Realistic progress stages for test case generation
-                    const progressStages = [
-                        { progress: 5, message: 'Đang khởi tạo quá trình tạo test cases...', duration: 2000 },
-                        { progress: 15, message: 'Đang phân tích các sections đã chọn...', duration: 2500 },
-                        { progress: 30, message: 'Đang trích xuất functional requirements...', duration: 3000 },
-                        { progress: 45, message: 'Đang tạo test scenarios...', duration: 4000 },
-                        { progress: 60, message: 'Đang tạo test cases...', duration: 5000 },
-                        { progress: 75, message: 'Đang xác thực test cases...', duration: 3000 },
-                        { progress: 85, message: 'Đang hoàn thiện test suite...', duration: 2000 },
-                        { progress: 95, message: 'Sắp hoàn thành...', duration: 1000 }
-                    ];
-
                     // Prevent multiple progress bars from running
                     if (isTestCaseProgressRunning) {
                         console.log('Test case progress already running, skipping...');
@@ -710,28 +698,27 @@
                     }
                     
                     isTestCaseProgressRunning = true;
-                    let currentStage = 0;
-                    let accumulatedDelay = 0;
-
-                    // Schedule all progress stages upfront to prevent overlap
-                    progressStages.forEach((stage, index) => {
-                        accumulatedDelay += (index === 0 ? 500 : progressStages[index - 1].duration);
-                        const timeoutId = setTimeout(() => {
-                            // Only update if still running and not cleared
-                            if (isTestCaseProgressRunning && currentStage === index) {
-                                document.getElementById('testCaseProgressBar').style.width = stage.progress + '%';
-                                document.getElementById('testCaseStatusMessage').textContent = stage.message;
-                                currentStage++;
-                                
-                                // If this is the last stage, keep at 95%
-                                if (index === progressStages.length - 1) {
-                                    document.getElementById('testCaseProgressBar').style.width = '95%';
-                                    document.getElementById('testCaseStatusMessage').textContent = 'Đang chờ hoàn thành...';
-                                }
-                            }
-                        }, accumulatedDelay);
-                        testCaseProgressStages.push(timeoutId);
-                    });
+                    
+                    // Countdown timer 60 seconds
+                    let countdown = 60;
+                    const countdownInterval = setInterval(() => {
+                        if (!isTestCaseProgressRunning) {
+                            clearInterval(countdownInterval);
+                            return;
+                        }
+                        
+                        countdown--;
+                        const progress = Math.min(95, ((60 - countdown) / 60) * 95);
+                        document.getElementById('testCaseProgressBar').style.width = progress + '%';
+                        document.getElementById('testCaseStatusMessage').textContent = `Đang tạo test cases... Còn lại ${countdown} giây`;
+                        
+                        if (countdown <= 0) {
+                            clearInterval(countdownInterval);
+                            document.getElementById('testCaseProgressBar').style.width = '95%';
+                            document.getElementById('testCaseStatusMessage').textContent = 'Đang chờ hoàn thành...';
+                        }
+                    }, 1000);
+                    testCaseProgressStages.push(countdownInterval);
 
                     fetch(`/project/${projectUuid}/test-cases/generate/`, {
                         method: 'POST',
@@ -821,9 +808,12 @@
 
     function checkTestCaseStatusLoop(projectUuid) {
         // Clear staged progress (but keep the flag running since we're checking status)
-        // Only clear the staged progress timeouts, not the final interval
-        testCaseProgressStages.forEach(timeoutId => {
-            if (timeoutId) clearTimeout(timeoutId);
+        // Clear both timeouts and intervals
+        testCaseProgressStages.forEach(id => {
+            if (id) {
+                clearTimeout(id);
+                clearInterval(id);
+            }
         });
         testCaseProgressStages = [];
         
