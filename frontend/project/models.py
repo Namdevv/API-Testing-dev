@@ -10,6 +10,8 @@ class UserProject(models.Model):
     project_name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    # Store the list of FR IDs that were selected when test cases were last generated
+    last_selected_fr_ids = models.JSONField(default=list, blank=True, help_text="List of FR info IDs that were selected when test cases were generated")
 
     def __str__(self):
         return self.project_name

@@ -116,3 +116,16 @@
     </ul>
 </div>
 </div>
+
+<script>
+    // Kiểm tra xem có documents nào đã được xử lý (completed) không
+    // Khởi tạo biến global
+    window.hasCompletedDocuments = false;
+    
+    // Kiểm tra trong danh sách documents từ Django template
+    {% for doc in documents %}
+        {% if doc.ai_processing_status == 'completed' %}
+            window.hasCompletedDocuments = true;
+        {% endif %}
+    {% endfor %}
+</script>
