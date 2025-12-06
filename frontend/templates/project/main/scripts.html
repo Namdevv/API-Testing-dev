@@ -148,6 +148,19 @@
         
         // Save current step to localStorage
         localStorage.setItem(`project_step_${projectUuid}`, n.toString());
+        
+        // Update URL để remove query param step cũ (trừ khi có report_id)
+        // Điều này đảm bảo khi reload sẽ dùng localStorage thay vì query param
+        const url = new URL(window.location.href);
+        const hasReportId = url.searchParams.has('report_id');
+        
+        // Chỉ update URL nếu không có report_id (vì report_id cần giữ lại)
+        if (!hasReportId) {
+            // Remove step param từ URL để khi reload sẽ dùng localStorage
+            url.searchParams.delete('step');
+            // Update URL mà không reload page
+            window.history.replaceState({}, '', url.toString());
+        }
 
         // Ẩn/hiện nội dung theo step
         document.querySelectorAll('.phase').forEach(el => el.classList.add('d-none'));
@@ -156,6 +169,9 @@
         
         // Điều khiển hiển thị nút Back và Next theo từng step
         updateNavigationButtons(n);
+        
+        // Cập nhật lock status cho các step
+        updateStepLocks();
     }
     
     // Helper function to update navigation buttons visibility
@@ -242,13 +258,117 @@
         });
     }
 
+    // Hàm xử lý khi click vào step icon
+    function goToStep(n) {
+        // Kiểm tra nếu AI đang processing, chỉ cho phép step 1 và 2
+        if (window.aiProcessingInProgress && n !== 1 && n !== 2) {
+            if (typeof showNotification === 'function') {
+                showNotification('warning', 'Cảnh báo', 'AI đang xử lý documents. Vui lòng đợi quá trình hoàn thành trước khi chuyển sang các bước khác.');
+            }
+            return;
+        }
+        
+        // Kiểm tra xem step có được unlock không
+        if (!isStepUnlocked(n)) {
+            const maxUnlocked = getMaxUnlockedStep();
+            let message = '';
+            
+            if (n === 3) {
+                message = 'Vui lòng hoàn thành bước 2 (AI Extract) trước khi chuyển sang bước 3.';
+            } else if (n === 4) {
+                message = 'Vui lòng hoàn thành bước 3 (View FRs - chọn và lưu FR) trước khi chuyển sang bước 4.';
+            } else if (n === 5) {
+                message = 'Vui lòng hoàn thành bước 4 (AI Test Case - chọn test cases) trước khi chuyển sang bước 5.';
+            } else {
+                message = `Bước ${n} chưa được mở khóa. Vui lòng hoàn thành bước ${maxUnlocked} trước.`;
+            }
+            
+            if (typeof showNotification === 'function') {
+                showNotification('warning', 'Cảnh báo', message);
+            }
+            return;
+        }
+        
+        // Nếu click vào step 2 và có documents đã completed, chuyển sang step 3
+        if (n === 2 && window.hasCompletedDocuments) {
+            // Hiển thị thông báo và chuyển sang step 3
+            if (typeof showNotification === 'function') {
+                showNotification('info', 'Thông báo', 'Documents đã được xử lý. Chuyển sang bước chọn FR.');
+            }
+            setStep(3);
+            // Load sections
+            if (typeof loadSections === 'function') {
+                setTimeout(() => {
+                    loadSections();
+                }, 300);
+            }
+            return;
+        }
+        
+        // Cho các step khác, gọi setStep bình thường
+        setStep(n);
+        
+        // Xử lý các logic đặc biệt cho từng step
+        setTimeout(() => {
+            if (n === 2 && typeof startAIProcessing === 'function') {
+                // Nếu chuyển đến step 2, bắt đầu AI processing
+                startAIProcessing(projectUuid);
+            } else if (n === 3 && typeof loadSections === 'function') {
+                // Nếu chuyển đến step 3, load sections
+                loadSections();
+            } else if (n === 4 && typeof startTestCaseGeneration === 'function') {
+                // Nếu chuyển đến step 4, bắt đầu test case generation
+                startTestCaseGeneration(projectUuid);
+            }
+        }, 300);
+    }
+
     // Restore step on page load
     document.addEventListener('DOMContentLoaded', function() {
-        setStep(currentStep);
+        // Ưu tiên check URL query param nếu có (cho deep linking)
+        const params = new URLSearchParams(window.location.search);
+        const stepParam = params.get('step');
+        const reportId = params.get('report_id');
+        
+        // Nếu có step param trong URL, sử dụng nó (cho deep linking)
+        // Nếu không, sử dụng currentStep từ localStorage (đã được restore ở trên)
+        let stepToSet = currentStep; // currentStep đã được restore từ localStorage ở IIFE
+        
+        if (stepParam) {
+            const stepNum = parseInt(stepParam, 10);
+            if (!isNaN(stepNum) && stepNum >= 1 && stepNum <= totalSteps) {
+                stepToSet = stepNum;
+                // Lưu vào localStorage để lần sau reload sẽ dùng step này
+                localStorage.setItem(`project_step_${projectUuid}`, stepNum.toString());
+                // Cập nhật currentStep để đồng bộ
+                currentStep = stepNum;
+            }
+        } else {
+            // Nếu không có query param, đảm bảo dùng step từ localStorage
+            // currentStep đã được restore từ localStorage ở IIFE, nên chỉ cần dùng nó
+            stepToSet = currentStep;
+        }
+        
+        setStep(stepToSet);
+        
+        // Thêm event listener cho các step icon để có thể click vào chúng
+        const steps = document.querySelectorAll('.step');
+        steps.forEach((step, index) => {
+            const stepNumber = index + 1;
+            
+            // Thêm event listener cho click
+            step.addEventListener('click', function() {
+                // Chỉ cho phép click nếu step được unlock
+                if (isStepUnlocked(stepNumber)) {
+                    goToStep(stepNumber);
+                }
+            });
+        });
+        
+        // Cập nhật lock status ban đầu
+        updateStepLocks();
         
         // Check if report_id is in URL query params and auto-load report
-        const params = new URLSearchParams(window.location.search);
-        const reportId = params.get('report_id');
         if (reportId) {
             // Set step to 5 (report phase) and load the report
             setTimeout(() => {
@@ -256,17 +376,38 @@
             }, 500);
         }
         
-        // If restoring to step 4, automatically load test cases if they exist
-        if (currentStep === 4 && !reportId) {
+        // Auto-load data for specific steps
+        if (stepToSet === 2) {
+            // If on step 2, check if we need to start AI processing or FR extraction
+            // This will be handled by startAIProcessing or checkAIStatusLoop
+        } else if (stepToSet === 3) {
+            // Load sections for step 3
             setTimeout(() => {
-                startTestCaseGeneration(projectUuid);
+                if (typeof loadSections === 'function') {
+                    loadSections();
+                }
+            }, 300);
+        } else if (stepToSet === 4 && !reportId) {
+            // If restoring to step 4, automatically load test cases if they exist
+            setTimeout(() => {
+                if (typeof startTestCaseGeneration === 'function') {
+                    startTestCaseGeneration(projectUuid);
+                }
             }, 500);
         }
     });
 
     function nextStep() {
         if (currentStep === 1) {
-            // Always allow next from step 1 (let backend handle document validation)
+            // Kiểm tra xem có documents nào đã được xử lý (completed) không
+            // Nếu có, chuyển thẳng sang phase 3 (FR Selection) bỏ qua phase 2
+            if (window.hasCompletedDocuments) {
+                setStep(3);
+                loadSections();
+                return;
+            }
+            
+            // Nếu không có documents completed, chuyển sang phase 2 như bình thường
             setStep(2);
             // Auto start AI processing when entering step 2
             setTimeout(() => {
@@ -287,34 +428,16 @@
                 showNotification('warning', 'Cảnh báo', 'Vui lòng chờ trích xuất Functional Requirements hoàn thành.');
             }
         } else if (currentStep === 3) {
-            // Check if at least one FR is selected (either already saved or currently checked)
+            // Check if at least one FR is selected (checkboxes are saved automatically)
             const selectedFRs = Array.from(document.querySelectorAll('.fr-checkbox:checked'));
-            const hasSavedSelections = window.frSelectionsSaved;
             
-            // If no FRs are currently checked and selections haven't been saved, require selection
-            if (selectedFRs.length === 0 && !hasSavedSelections) {
+            // If no FRs are currently checked, require selection
+            if (selectedFRs.length === 0) {
                 showNotification('warning', 'Cảnh báo', 'Vui lòng chọn ít nhất một Functional Requirement (FR) trước khi tiếp tục.');
                 return;
             }
             
-            // If FRs are checked but not saved yet, require saving
-            if (selectedFRs.length > 0 && !hasSavedSelections) {
-                showNotification('warning', 'Cảnh báo', 'Vui lòng nhấn nút "Choose FR Selections" để lưu các lựa chọn của bạn trước khi tiếp tục.');
-                return;
-            }
-            
-            // If selections have been saved before, allow next without re-checking
-            // This means user has already selected and saved FRs previously
-            if (hasSavedSelections) {
-                // All validations passed, proceed to next step
-                setStep(4);
-                // Auto start AI test case generation when entering step 4
-                setTimeout(() => {
-                    startTestCaseGeneration('{{ project.uuid }}');
-                }, 500);
-                return;
-            }
-            
+            // Selections are saved automatically when checkboxes are toggled, so we can proceed
             // All validations passed, proceed to next step
             setStep(4);
             // Auto start AI test case generation when entering step 4
@@ -354,32 +477,239 @@
 
     // Initialize flags for tracking processing status
     window.aiProcessingComplete = false;
+    window.aiProcessingInProgress = false; // Track if AI is currently processing
     window.frExtractionComplete = false;
     window.frSelectionsSaved = false; // Track if FR selections have been saved at least once
     window.currentProjectUuid = '{{ project.uuid }}'; // Store project UUID globally
     window.testReportReady = false; // Track if test report is ready
     window.testCasesSelected = false; // Track if test cases have been selected
     window.selectedTestSuiteId = null; // Store selected test suite ID
-
-    // init: mở bước theo query param ?step=, mặc định 1
-    document.addEventListener("DOMContentLoaded", function () {
-        const params = new URLSearchParams(window.location.search);
-        const stepParam = parseInt(params.get('step'));
-        if (!isNaN(stepParam) && stepParam >= 1 && stepParam <= totalSteps) {
-            setStep(stepParam);
-            if (stepParam === 2) {
-                // If on step 2, check if we need to start AI processing or FR extraction
-                // This will be handled by startAIProcessing or checkAIStatusLoop
-            } else if (stepParam === 3) {
-                loadSections();
-            }
-        } else {
-            setStep(1);
+    
+    // Store original states of disabled elements
+    window.disabledElements = [];
+    
+    // Hàm tạo blocking overlay để chặn tất cả tương tác
+    function createBlockingOverlay() {
+        // Kiểm tra xem overlay đã tồn tại chưa
+        let overlay = document.getElementById('ai-processing-blocking-overlay');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.id = 'ai-processing-blocking-overlay';
+            overlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.5);
+                z-index: 99999;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                backdrop-filter: blur(2px);
+            `;
+            
+            const content = document.createElement('div');
+            content.style.cssText = `
+                background: white;
+                padding: 30px;
+                border-radius: 10px;
+                text-align: center;
+                box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+                max-width: 400px;
+            `;
+            
+            content.innerHTML = `
+                <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <h5 class="mb-2">AI đang xử lý...</h5>
+                <p class="text-muted mb-0">Vui lòng đợi quá trình hoàn thành. Bạn không thể thao tác trên màn hình lúc này.</p>
+            `;
+            
+            overlay.appendChild(content);
+            document.body.appendChild(overlay);
         }
-    });
+        overlay.style.display = 'flex';
+        return overlay;
+    }
+    
+    // Hàm ẩn blocking overlay
+    function hideBlockingOverlay() {
+        const overlay = document.getElementById('ai-processing-blocking-overlay');
+        if (overlay) {
+            overlay.style.display = 'none';
+        }
+    }
+    
+    // Hàm disable tất cả interactive elements
+    function disableAllInteractiveElements() {
+        window.disabledElements = [];
+        
+        // Disable tất cả buttons (trừ các button trong phase 2 - AI processing)
+        const buttons = document.querySelectorAll('button:not(#ai-processing-blocking-overlay button)');
+        buttons.forEach(btn => {
+            if (!btn.disabled && !btn.closest('#phase2')) {
+                btn.setAttribute('data-originally-enabled', 'true');
+                btn.disabled = true;
+                window.disabledElements.push(btn);
+            }
+        });
+        
+        // Disable tất cả links
+        const links = document.querySelectorAll('a:not(#ai-processing-blocking-overlay a)');
+        links.forEach(link => {
+            if (!link.hasAttribute('data-originally-disabled')) {
+                link.setAttribute('data-originally-enabled', 'true');
+                link.style.pointerEvents = 'none';
+                link.style.opacity = '0.5';
+                window.disabledElements.push(link);
+            }
+        });
+        
+        // Disable tất cả inputs và textareas
+        const inputs = document.querySelectorAll('input:not(#ai-processing-blocking-overlay input), textarea:not(#ai-processing-blocking-overlay textarea), select:not(#ai-processing-blocking-overlay select)');
+        inputs.forEach(input => {
+            if (!input.disabled && !input.closest('#phase2')) {
+                input.setAttribute('data-originally-enabled', 'true');
+                input.disabled = true;
+                window.disabledElements.push(input);
+            }
+        });
+        
+        // Disable tất cả forms
+        const forms = document.querySelectorAll('form:not(#ai-processing-blocking-overlay form)');
+        forms.forEach(form => {
+            if (!form.hasAttribute('data-originally-disabled')) {
+                form.setAttribute('data-originally-enabled', 'true');
+                form.style.pointerEvents = 'none';
+                form.style.opacity = '0.5';
+                window.disabledElements.push(form);
+            }
+        });
+        
+        // Prevent clicks on step icons
+        const steps = document.querySelectorAll('.step');
+        steps.forEach(step => {
+            if (!step.hasAttribute('data-originally-disabled')) {
+                step.setAttribute('data-originally-enabled', 'true');
+                step.style.pointerEvents = 'none';
+                window.disabledElements.push(step);
+            }
+        });
+    }
+    
+    // Hàm enable lại tất cả interactive elements
+    function enableAllInteractiveElements() {
+        window.disabledElements.forEach(element => {
+            if (element.hasAttribute('data-originally-enabled')) {
+                if (element.tagName === 'BUTTON' || element.tagName === 'INPUT' || element.tagName === 'TEXTAREA' || element.tagName === 'SELECT') {
+                    element.disabled = false;
+                } else {
+                    element.style.pointerEvents = '';
+                    element.style.opacity = '';
+                }
+                element.removeAttribute('data-originally-enabled');
+            }
+        });
+        window.disabledElements = [];
+    }
+    
+    // Hàm block tất cả tương tác khi AI processing
+    function blockAllInteractions() {
+        createBlockingOverlay();
+        disableAllInteractiveElements();
+    }
+    
+    // Hàm unblock tất cả tương tác khi AI processing hoàn thành
+    function unblockAllInteractions() {
+        hideBlockingOverlay();
+        enableAllInteractiveElements();
+    }
+    
+    // Hàm kiểm tra step có được unlock không
+    function isStepUnlocked(stepNumber) {
+        // Nếu AI đang processing, chỉ cho phép step 1 và 2
+        if (window.aiProcessingInProgress) {
+            return stepNumber === 1 || stepNumber === 2;
+        }
+        
+        // Step 1: luôn unlock (bước đầu tiên)
+        if (stepNumber === 1) {
+            return true;
+        }
+        
+        // Step 2: unlock nếu đã có documents hoặc đã vào step 1
+        if (stepNumber === 2) {
+            return true; // Có thể vào step 2 để xử lý documents
+        }
+        
+        // Step 3: unlock nếu:
+        // - Đã hoàn thành step 2 (AI processing + FR extraction) HOẶC
+        // - Có documents đã completed (bỏ qua step 2)
+        if (stepNumber === 3) {
+            const hasCompletedDocs = window.hasCompletedDocuments || false;
+            const aiComplete = window.aiProcessingComplete || false;
+            const frComplete = window.frExtractionComplete || false;
+            return hasCompletedDocs || (aiComplete && frComplete);
+        }
+        
+        // Step 4: unlock nếu đã hoàn thành step 3 (đã chọn và lưu FR)
+        if (stepNumber === 4) {
+            return window.frSelectionsSaved || false;
+        }
+        
+        // Step 5: unlock nếu đã hoàn thành step 4 (đã chọn test cases)
+        if (stepNumber === 5) {
+            return window.testCasesSelected || false;
+        }
+        
+        return false;
+    }
+    
+    // Hàm lấy step cao nhất đã được unlock
+    function getMaxUnlockedStep() {
+        for (let i = totalSteps; i >= 1; i--) {
+            if (isStepUnlocked(i)) {
+                return i;
+            }
+        }
+        return 1; // Mặc định step 1 luôn unlock
+    }
+    
+    // Hàm cập nhật UI để disable/lock các step chưa unlock
+    function updateStepLocks() {
+        const steps = document.querySelectorAll('.step');
+        const maxUnlocked = getMaxUnlockedStep();
+        
+        steps.forEach((step, index) => {
+            const stepNumber = index + 1;
+            const isUnlocked = stepNumber <= maxUnlocked;
+            
+            if (isUnlocked) {
+                step.classList.remove('locked', 'disabled');
+                step.style.cursor = 'pointer';
+                step.style.opacity = '1';
+            } else {
+                step.classList.add('locked', 'disabled');
+                step.style.cursor = 'not-allowed';
+                step.style.opacity = '0.5';
+            }
+        });
+    }
+
+    // Note: Logic restore step đã được xử lý trong DOMContentLoaded listener ở trên
+    // Không cần duplicate logic ở đây nữa
 
     // AI Processing Functions
     function startAIProcessing(projectUuid) {
+        // Set flag that AI processing is in progress
+        window.aiProcessingInProgress = true;
+        // Block tất cả tương tác trên màn hình
+        blockAllInteractions();
+        // Cập nhật lock status cho các step
+        updateStepLocks();
+        
         // Update UI to show processing
         document.getElementById('aiStatusText').textContent = 'AI Processing Started...';
         document.getElementById('aiStatusMessage').textContent = 'AI is analyzing your document...';
@@ -433,6 +763,11 @@
                     checkAIStatusLoop(projectUuid);
                 } else {
                     // Stop any ongoing progress updates
+                    // Clear processing in progress flag on error
+                    window.aiProcessingInProgress = false;
+                    // Unblock tất cả tương tác
+                    unblockAllInteractions();
+                    updateStepLocks();
                     document.getElementById('aiStatusText').textContent = 'Error';
                     document.getElementById('aiStatusMessage').textContent = data.message;
                     document.getElementById('aiStatusIndicator').innerHTML = `
@@ -479,6 +814,10 @@
                         `;
                                 // Store flag that AI processing is complete
                                 window.aiProcessingComplete = true;
+                                // Note: Không clear aiProcessingInProgress ở đây vì FR extraction vẫn đang chạy
+                                // Chỉ clear khi FR extraction hoàn thành
+                                // Cập nhật lock status cho các step
+                                updateStepLocks();
                                 // Start FR extraction in step 2 instead of redirecting to step 3
                                 setTimeout(() => {
                                     extractFRInStep2(projectUuid);
@@ -492,6 +831,11 @@
                         setTimeout(() => { checking = false; checkStatus(); }, 2000);
                     } else {
                         // Stop progress updates
+                        // Clear processing in progress flag on error
+                        window.aiProcessingInProgress = false;
+                        // Unblock tất cả tương tác
+                        unblockAllInteractions();
+                        updateStepLocks();
                         document.getElementById('aiStatusText').textContent = 'Error';
                         document.getElementById('aiStatusMessage').textContent = data.message;
                         document.getElementById('aiStatusIndicator').innerHTML = `
@@ -503,6 +847,11 @@
                 })
                 .catch(error => {
                     console.error('Error:', error);
+                    // Clear processing in progress flag on error
+                    window.aiProcessingInProgress = false;
+                    // Unblock tất cả tương tác
+                    unblockAllInteractions();
+                    updateStepLocks();
                     document.getElementById('aiStatusText').textContent = 'Error';
                     document.getElementById('aiStatusMessage').textContent = 'An error occurred while checking status.';
                     document.getElementById('aiStatusIndicator').innerHTML = `
@@ -520,10 +869,24 @@
 
     // FR Extraction Functions for Step 2
     function extractFRInStep2(projectUuid) {
+        // Đảm bảo flag processing vẫn được giữ (FR extraction là phần của quá trình processing)
+        window.aiProcessingInProgress = true;
+        // Đảm bảo blocking overlay vẫn hiển thị
+        blockAllInteractions();
+        // Cập nhật lock status cho các step
+        updateStepLocks();
+        
         // Update UI to show FR extraction
         document.getElementById('aiStatusText').textContent = 'Đang trích xuất Functional Requirements...';
         document.getElementById('aiStatusMessage').textContent = 'AI đang phân tích và trích xuất các Functional Requirements từ documents...';
         document.getElementById('aiProgressBar').style.width = '0%';
+        
+        // Cập nhật message trong blocking overlay
+        const overlayContent = document.querySelector('#ai-processing-blocking-overlay > div');
+        if (overlayContent) {
+            overlayContent.querySelector('h5').textContent = 'Đang trích xuất Functional Requirements...';
+            overlayContent.querySelector('p').textContent = 'AI đang phân tích và trích xuất các Functional Requirements. Vui lòng đợi quá trình hoàn thành.';
+        }
 
         // Realistic progress stages for FR extraction
         const progressStages = [
@@ -601,8 +964,16 @@
 
                             // Store flag that FR extraction is complete
                             window.frExtractionComplete = true;
+                            // Clear processing in progress flag (AI processing và FR extraction đã hoàn thành)
+                            window.aiProcessingInProgress = false;
+                            // Unblock tất cả tương tác
+                            unblockAllInteractions();
+                            // Cập nhật lock status cho các step
+                            updateStepLocks();
 
                             // Auto navigate to step 3 without fresh_analysis parameter
+                            // Lưu step 3 vào localStorage trước khi redirect
+                            localStorage.setItem(`project_step_${projectUuid}`, '3');
                             setTimeout(() => {
                                 window.location.href = `/project/{{ project.uuid }}/?step=3`;
                             }, 2000);
@@ -610,6 +981,11 @@
                     }, 100);
                 } else {
                     // Error handling
+                    // Clear processing in progress flag on error
+                    window.aiProcessingInProgress = false;
+                    // Unblock tất cả tương tác
+                    unblockAllInteractions();
+                    updateStepLocks();
                     document.getElementById('aiStatusText').textContent = 'FR Extraction Error';
                     document.getElementById('aiStatusMessage').textContent = data.message || 'Error extracting Functional Requirements.';
                     document.getElementById('aiStatusIndicator').innerHTML = `
@@ -621,6 +997,11 @@
             })
             .catch(error => {
                 console.error('Error extracting FR:', error);
+                // Clear processing in progress flag on error
+                window.aiProcessingInProgress = false;
+                // Unblock tất cả tương tác
+                unblockAllInteractions();
+                updateStepLocks();
                 document.getElementById('aiStatusText').textContent = 'FR Extraction Error';
                 document.getElementById('aiStatusMessage').textContent = 'An error occurred while extracting Functional Requirements.';
                 document.getElementById('aiStatusIndicator').innerHTML = `
@@ -637,6 +1018,7 @@
     let testCaseStatusCheckTimeout = null;
     let testCaseProgressStages = []; // Store all stage timeouts
     let isTestCaseProgressRunning = false; // Flag to prevent multiple progress bars
+    let isTestCaseGenerationStarted = false; // Flag to prevent multiple calls to startTestCaseGeneration
 
     function clearAllTestCaseProgress() {
         // Clear all progress-related timeouts and intervals
@@ -648,17 +1030,34 @@
             clearTimeout(testCaseStatusCheckTimeout);
             testCaseStatusCheckTimeout = null;
         }
-        // Clear all stage timeouts
-        testCaseProgressStages.forEach(timeoutId => {
-            if (timeoutId) clearTimeout(timeoutId);
+        // Clear all stage timeouts and intervals
+        testCaseProgressStages.forEach(id => {
+            if (id) {
+                clearTimeout(id);
+                clearInterval(id);
+            }
         });
         testCaseProgressStages = [];
+        // Clear countdown interval
+        if (window.testCaseCountdownInterval) {
+            clearInterval(window.testCaseCountdownInterval);
+            window.testCaseCountdownInterval = null;
+        }
         isTestCaseProgressRunning = false;
     }
 
     function startTestCaseGeneration(projectUuid) {
+        // Prevent multiple calls to this function
+        if (isTestCaseGenerationStarted) {
+            console.log('Test case generation already started, skipping duplicate call...');
+            return;
+        }
+        
         // Clear any existing progress first
         clearAllTestCaseProgress();
+        
+        // Set flag to prevent duplicate calls
+        isTestCaseGenerationStarted = true;
         
         // First, check if testsuite already exists
         fetch(`/project/${projectUuid}/test-cases/check/`, {
@@ -674,6 +1073,8 @@
             .then(data => {
                 if (data.success && data.exists) {
                     // Test suite already exists, just load the test cases
+                    // Reset flag since we're loading existing test cases, not generating new ones
+                    isTestCaseGenerationStarted = false;
                     document.getElementById('testCaseStatusText').textContent = 'Đang tải Test Cases...';
                     document.getElementById('testCaseStatusMessage').textContent = `Đang tải ${data.test_cases_count} test cases đã có sẵn...`;
                     document.getElementById('testCaseProgressBar').style.width = '100%';
@@ -739,12 +1140,21 @@
                         .then(response => response.json())
                         .then(data => {
                             if (data.success) {
+                                // Stop the countdown immediately when starting status check
+                                if (window.testCaseCountdownInterval) {
+                                    clearInterval(window.testCaseCountdownInterval);
+                                    window.testCaseCountdownInterval = null;
+                                }
+                                // Update UI to show we're now checking status (not countdown)
+                                document.getElementById('testCaseProgressBar').style.width = '50%';
+                                document.getElementById('testCaseStatusMessage').textContent = 'Đang xử lý...';
                                 // Start checking status
                                 checkTestCaseStatusLoop(projectUuid);
                             } else {
                                 // Stop any ongoing progress updates
                                 isTestCaseProgressRunning = false;
                                 clearAllTestCaseProgress();
+                                isTestCaseGenerationStarted = false; // Reset flag on error
                                 document.getElementById('testCaseStatusText').textContent = 'Error';
                                 document.getElementById('testCaseStatusMessage').textContent = data.message;
                                 document.getElementById('testCaseStatusIndicator').innerHTML = `
@@ -758,6 +1168,7 @@
                             console.error('Error:', error);
                             isTestCaseProgressRunning = false;
                             clearAllTestCaseProgress();
+                            isTestCaseGenerationStarted = false; // Reset flag on error
                             document.getElementById('testCaseStatusText').textContent = 'Error';
                             document.getElementById('testCaseStatusMessage').textContent = 'An error occurred while starting test case generation.';
                             document.getElementById('testCaseStatusIndicator').innerHTML = `
@@ -772,10 +1183,15 @@
                 console.error('Error checking test suite:', error);
                 // Clear any existing progress before starting new one
                 clearAllTestCaseProgress();
+                // Reset flag so we can retry
+                isTestCaseGenerationStarted = false;
                 // If check fails, proceed with generation as fallback
                 document.getElementById('testCaseStatusText').textContent = 'Đang bắt đầu tạo Test Cases...';
                 document.getElementById('testCaseStatusMessage').textContent = 'AI đang tạo test cases từ các sections đã chọn...';
                 document.getElementById('testCaseProgressBar').style.width = '0%';
+                
+                // Set flag again for the fallback generation
+                isTestCaseGenerationStarted = true;
                 
                 fetch(`/project/${projectUuid}/test-cases/generate/`, {
                     method: 'POST',
@@ -792,10 +1208,19 @@
                     .then(response => response.json())
                     .then(data => {
                         if (data.success) {
+                            // Stop any countdown immediately when starting status check
+                            if (window.testCaseCountdownInterval) {
+                                clearInterval(window.testCaseCountdownInterval);
+                                window.testCaseCountdownInterval = null;
+                            }
+                            // Update UI to show we're now checking status
+                            document.getElementById('testCaseProgressBar').style.width = '50%';
+                            document.getElementById('testCaseStatusMessage').textContent = 'Đang xử lý...';
                             checkTestCaseStatusLoop(projectUuid);
                         } else {
                             isTestCaseProgressRunning = false;
                             clearAllTestCaseProgress();
+                            isTestCaseGenerationStarted = false; // Reset flag on error
                             document.getElementById('testCaseStatusText').textContent = 'Error';
                             document.getElementById('testCaseStatusMessage').textContent = data.message;
                         }
@@ -804,6 +1229,7 @@
                         console.error('Error generating test cases:', err);
                         isTestCaseProgressRunning = false;
                         clearAllTestCaseProgress();
+                        isTestCaseGenerationStarted = false; // Reset flag on error
                         document.getElementById('testCaseStatusText').textContent = 'Error';
                         document.getElementById('testCaseStatusMessage').textContent = 'An error occurred while generating test cases.';
                     });
@@ -866,14 +1292,20 @@
                             </div>
                         `;
                                 // Fetch test cases after completion
+                                // Reset flag since generation is complete
+                                isTestCaseGenerationStarted = false;
                                 setTimeout(() => {
                                     fetchTestCases(projectUuid);
                                 }, 1000);
                             }
                         }, 50);
                     } else if (data.status === 'processing') {
-                        // Update status message with progress info
+                        // Update status message with progress info from backend
                         document.getElementById('testCaseStatusMessage').textContent = data.message;
+                        // Update progress bar if backend provides progress value
+                        if (data.progress !== undefined) {
+                            document.getElementById('testCaseProgressBar').style.width = data.progress + '%';
+                        }
                         // Continue checking - use 5 seconds after 1 minute wait
                         // Check message to determine polling interval
                         const pollingInterval = data.message && data.message.includes('polling') ? 5000 : 2000;
@@ -882,6 +1314,7 @@
                         // Stop all progress updates
                         isTestCaseProgressRunning = false;
                         clearAllTestCaseProgress();
+                        isTestCaseGenerationStarted = false; // Reset flag on error
                         document.getElementById('testCaseStatusText').textContent = 'Error';
                         document.getElementById('testCaseStatusMessage').textContent = data.message;
                         document.getElementById('testCaseStatusIndicator').innerHTML = `
@@ -896,6 +1329,7 @@
                     // Stop all progress on error
                     isTestCaseProgressRunning = false;
                     clearAllTestCaseProgress();
+                    isTestCaseGenerationStarted = false; // Reset flag on error
                     document.getElementById('testCaseStatusText').textContent = 'Error';
                     document.getElementById('testCaseStatusMessage').textContent = 'An error occurred while checking status.';
                     document.getElementById('testCaseStatusIndicator').innerHTML = `
@@ -978,6 +1412,8 @@
         const hasSelectedTestCases = selectedTestCasesSet.size > 0;
         if (hasSelectedTestCases) {
             window.testCasesSelected = true;
+            // Cập nhật lock status cho các step
+            updateStepLocks();
             // Hiển thị lại nút Next và Back nếu đang ở step 4
             if (currentStep === 4) {
                 updateNavigationButtons(4);
@@ -998,7 +1434,7 @@
         if (!allTestCases || allTestCases.length === 0) {
             tbody.innerHTML = `
             <tr>
-                <td colspan="9" class="text-center text-muted py-4">
+                <td colspan="6" class="text-center text-muted py-4">
                     <i class="bi bi-inbox" style="font-size: 2rem;"></i><br>
                     Không có test cases nào được tạo.
                 </td>
@@ -1069,10 +1505,7 @@
                        ${isSelected ? 'checked' : ''}
                        onchange="handleTestCaseCheckboxChange(this)">
             </td>
-            <td class="text-center">${globalIndex + 1}</td>
             <td><code class="text-primary">${testCase.test_case_id || `TC-${String(globalIndex + 1).padStart(3, '0')}`}</code></td>
-            <td><code class="text-info" title="${endpoint}">${shortEndpoint}</code></td>
-            <td><small class="text-muted" title="${headersText}">${shortHeaders}</small></td>
             <td title="${testCaseName}"><strong>${shortName}</strong></td>
             <td><span class="badge ${categoryClass}">${category}</span></td>
             <td class="text-center">
@@ -1241,6 +1674,12 @@
                         });
                         
                         updateSelectedTestCasesCount();
+                        
+                        // Save all selections immediately
+                        const allTestCaseIds = Array.from(selectedTestCasesSet);
+                        if (allTestCaseIds.length > 0) {
+                            saveMultipleTestCaseSelections(allTestCaseIds, true);
+                        }
                     }, 500);
                     showNotification('info', 'Đã tải!', 'Đã tải và chọn tất cả test cases.');
                 }
@@ -1278,6 +1717,13 @@
             });
             
             updateSelectedTestCasesCount();
+            
+            // Save all selections immediately
+            const allTestCaseIds = Array.from(selectedTestCasesSet);
+            if (allTestCaseIds.length > 0) {
+                saveMultipleTestCaseSelections(allTestCaseIds, true);
+            }
+            
             showNotification('success', 'Đã chọn tất cả!', `Đã chọn tất cả ${allTestCases.length} test cases.`);
         }
     }
@@ -1289,6 +1735,13 @@
         const countElement = document.getElementById('selectedTestCasesCount');
         if (countElement) {
             countElement.textContent = count;
+        }
+        
+        // Update testCasesSelected flag and show Next button if any test case is selected
+        const hasSelected = count > 0;
+        window.testCasesSelected = hasSelected;
+        if (currentStep === 4) {
+            updateNavigationButtons(4);
         }
         
         // Update select all checkbox state based on all test cases
@@ -1313,18 +1766,88 @@
     function handleTestCaseCheckboxChange(checkbox) {
         const testCaseId = checkbox.getAttribute('data-test-case-id');
         if (testCaseId) {
-            if (checkbox.checked) {
+            const isSelected = checkbox.checked;
+            
+            if (isSelected) {
                 selectedTestCasesSet.add(testCaseId);
             } else {
                 selectedTestCasesSet.delete(testCaseId);
             }
             updateSelectedTestCasesCount();
+            
+            // Save selection immediately
+            saveSingleTestCaseSelection(testCaseId, isSelected);
         }
+    }
+    
+    // Function to save a single test case selection immediately
+    function saveSingleTestCaseSelection(testCaseId, isSelected) {
+        console.log(`Saving test case selection: ${testCaseId}, isSelected: ${isSelected}`);
+        
+        const projectUuid = '{{ project.uuid }}';
+        const payload = {
+            test_case_ids: [testCaseId],
+            execute: isSelected  // true to select, false to deselect
+        };
+        
+        fetch(`/project/${projectUuid}/test-cases/select/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: JSON.stringify(payload),
+            _noLoading: true,  // Bỏ qua loading overlay để không gây khó chịu
+            _timeoutMs: 30000,
+            _retries: 1
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Selection saved successfully
+                console.log(`Test case ${testCaseId} ${isSelected ? 'selected' : 'deselected'} successfully`);
+                
+                // Update testCasesSelected flag and show Next button if any test case is selected
+                const hasSelected = selectedTestCasesSet.size > 0;
+                window.testCasesSelected = hasSelected;
+                updateNavigationButtons(4);
+            } else {
+                // Revert checkbox state on error
+                const checkbox = document.querySelector(`[data-test-case-id="${testCaseId}"]`);
+                if (checkbox) {
+                    checkbox.checked = !isSelected;
+                    if (isSelected) {
+                        selectedTestCasesSet.delete(testCaseId);
+                    } else {
+                        selectedTestCasesSet.add(testCaseId);
+                    }
+                    updateSelectedTestCasesCount();
+                }
+                showNotification('error', 'Lỗi!', data.message || 'Không thể lưu lựa chọn test case.');
+            }
+        })
+        .catch(error => {
+            console.error('Error saving test case selection:', error);
+            // Revert checkbox state on error
+            const checkbox = document.querySelector(`[data-test-case-id="${testCaseId}"]`);
+            if (checkbox) {
+                checkbox.checked = !isSelected;
+                if (isSelected) {
+                    selectedTestCasesSet.delete(testCaseId);
+                } else {
+                    selectedTestCasesSet.add(testCaseId);
+                }
+                updateSelectedTestCasesCount();
+            }
+            showNotification('error', 'Lỗi!', 'Đã xảy ra lỗi khi lưu lựa chọn test case.');
+        });
     }
 
     function toggleAllTestCases(checkbox) {
+        const isSelected = checkbox.checked;
+        
         // Select/deselect ALL test cases across all pages, not just current page
-        if (checkbox.checked) {
+        if (isSelected) {
             // Add all test case IDs to the Set
             allTestCases.forEach(tc => {
                 const testCaseId = getTestCaseId(tc);
@@ -1345,9 +1868,58 @@
         });
         
         updateSelectedTestCasesCount();
+        
+        // Save all selections immediately
+        const allTestCaseIds = Array.from(selectedTestCasesSet);
+        if (allTestCaseIds.length > 0) {
+            saveMultipleTestCaseSelections(allTestCaseIds, isSelected);
+        }
+    }
+    
+    // Function to save multiple test case selections (for select all/deselect all)
+    function saveMultipleTestCaseSelections(testCaseIds, isSelected) {
+        console.log(`Saving ${testCaseIds.length} test case selections: isSelected=${isSelected}`);
+        
+        const projectUuid = '{{ project.uuid }}';
+        const payload = {
+            test_case_ids: testCaseIds,
+            execute: isSelected
+        };
+        
+        fetch(`/project/${projectUuid}/test-cases/select/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: JSON.stringify(payload),
+            _noLoading: true,  // Bỏ qua loading overlay để không gây khó chịu
+            _timeoutMs: 30000,
+            _retries: 1
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                console.log(`Successfully ${isSelected ? 'selected' : 'deselected'} ${testCaseIds.length} test cases`);
+                
+                // Update testCasesSelected flag and show Next button if any test case is selected
+                const hasSelected = selectedTestCasesSet.size > 0;
+                window.testCasesSelected = hasSelected;
+                updateNavigationButtons(4);
+            } else {
+                showNotification('error', 'Lỗi!', data.message || 'Không thể lưu lựa chọn test cases.');
+            }
+        })
+        .catch(error => {
+            console.error('Error saving test case selections:', error);
+            showNotification('error', 'Lỗi!', 'Đã xảy ra lỗi khi lưu lựa chọn test cases.');
+        });
     }
 
     function clearSelectedTestCases() {
+        // Get all test case IDs before clearing
+        const allTestCaseIds = Array.from(selectedTestCasesSet);
+        
         // Clear all selections from the Set
         selectedTestCasesSet.clear();
         
@@ -1364,6 +1936,12 @@
         }
         
         updateSelectedTestCasesCount();
+        
+        // Save deselection immediately if there were any selected
+        if (allTestCaseIds.length > 0) {
+            saveMultipleTestCaseSelections(allTestCaseIds, false);
+        }
+        
         showNotification('info', 'Đã bỏ chọn', 'Đã bỏ chọn tất cả test cases.');
     }
 
@@ -1439,10 +2017,12 @@
                     // Lưu test_suite_id để dùng khi bấm Next sang step 5
                     window.selectedTestSuiteId = testSuiteId;
                     window.testCasesSelected = true;
+                    updateStepLocks();
                     showNotification('success', 'Thành công!', `Đã chọn ${testCaseIds.length} test case(s) thành công. Bấm "Next" để thực thi test suite.`);
                 } else {
                     // Nếu không có test_suite_id, vẫn cho phép chọn (test_suite_id sẽ được lấy từ DB khi execute)
                     window.testCasesSelected = true;
+                    updateStepLocks();
                     showNotification('success', 'Thành công!', `Đã chọn ${testCaseIds.length} test case(s) thành công. Bấm "Next" để thực thi test suite.`);
                     console.warn('No test_suite_id in response, will try to get from database when executing');
                 }
@@ -2317,6 +2897,26 @@
         document.getElementById('testCaseDetailEndpoint').textContent = testCase.endpoint || 'N/A';
         document.getElementById('testCaseDetailCategory').textContent = testCase.test_category || 'N/A';
         document.getElementById('testCaseDetailStatus').textContent = testCase.expected_statuscode || 'N/A';
+        
+        // Get method from api_info.method or http_method
+        const method = testCase.api_info?.method || testCase.http_method || 'N/A';
+        const methodElement = document.getElementById('testCaseDetailMethod');
+        methodElement.textContent = method;
+        
+        // Set badge color based on HTTP method
+        const methodUpper = method.toUpperCase();
+        methodElement.classList.remove('bg-info', 'bg-primary', 'bg-success', 'bg-warning', 'bg-danger', 'bg-secondary');
+        if (methodUpper === 'GET') {
+            methodElement.classList.add('bg-primary');
+        } else if (methodUpper === 'POST') {
+            methodElement.classList.add('bg-success');
+        } else if (methodUpper === 'PUT' || methodUpper === 'PATCH') {
+            methodElement.classList.add('bg-warning');
+        } else if (methodUpper === 'DELETE') {
+            methodElement.classList.add('bg-danger');
+        } else {
+            methodElement.classList.add('bg-secondary');
+        }
 
         // Format and display headers
         const header = testCase.header || {};
@@ -2835,12 +3435,16 @@
                         frList.appendChild(col);
                     });
 
-                    // Add event listeners to update badge status when checkboxes change
+                    // Add event listeners to save FR selection immediately when checkboxes change
                     document.querySelectorAll('.fr-checkbox').forEach(checkbox => {
                         checkbox.addEventListener('change', function () {
+                            const frId = this.value;
+                            const isSelected = this.checked;
                             const badge = this.closest('.card-body').querySelector('.badge');
+                            
+                            // Update badge immediately for better UX
                             if (badge) {
-                                if (this.checked) {
+                                if (isSelected) {
                                     badge.className = 'badge bg-success';
                                     badge.textContent = 'Selected';
                                 } else {
@@ -2848,19 +3452,24 @@
                                     badge.textContent = 'Not Selected';
                                 }
                             }
+                            
+                            // Save selection immediately
+                            saveSingleFRSelection(frId, isSelected);
                         });
                     });
 
                     // Check if any FRs are already selected
                     const hasSelectedFRs = frArray.some(fr => fr.is_selected === true);
                     
-                    // Set flag if FRs are already selected (but keep button visible for additional selections)
+                    // Set flag if FRs are already selected
                     if (hasSelectedFRs) {
                         window.frSelectionsSaved = true;
+                        // Cập nhật lock status cho các step
+                        updateStepLocks();
                     }
                     
-                    // Always show Save button so user can add more selections
-                    document.getElementById('saveFRSelectionContainer').style.display = 'block';
+                    // Hide the Save button since selections are saved automatically
+                    document.getElementById('saveFRSelectionContainer').style.display = 'none';
                 } else {
                     frList.innerHTML = `
                 <div class="col-12">
@@ -2930,6 +3539,69 @@
 
 
 
+    // Function to save a single FR selection immediately
+    function saveSingleFRSelection(frId, isSelected) {
+        console.log(`Saving FR selection: ${frId}, isSelected: ${isSelected}`);
+        
+        fetch(`/project/{{ project.uuid }}/select-fr/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'accept': 'application/json'
+            },
+            body: JSON.stringify({
+                fr_info_ids: [frId],
+                is_selected: isSelected
+            }),
+            _noLoading: true,  // Bỏ qua loading overlay để không gây khó chịu
+            _timeoutMs: 30000,
+            _retries: 1
+        })
+            .then(response => {
+                console.log('API response status:', response.status);
+                return response.json();
+            })
+            .then(data => {
+                console.log('API response data:', data);
+                if (data.success) {
+                    // Mark that selections have been saved
+                    window.frSelectionsSaved = true;
+                    // Cập nhật lock status cho các step
+                    updateStepLocks();
+                    
+                    // Ensure cached data is marked as fresh after saving selections
+                    localStorage.setItem('fr_cache_fresh', Date.now().toString());
+                } else {
+                    // Revert checkbox state on error
+                    const checkbox = document.getElementById(`fr_${frId}`);
+                    if (checkbox) {
+                        checkbox.checked = !isSelected;
+                        const badge = checkbox.closest('.card-body').querySelector('.badge');
+                        if (badge) {
+                            badge.className = `badge ${!isSelected ? 'bg-success' : 'bg-secondary'}`;
+                            badge.textContent = !isSelected ? 'Selected' : 'Not Selected';
+                        }
+                    }
+                    showNotification('error', 'Lỗi!', data.message || 'Không thể lưu lựa chọn FR.');
+                }
+            })
+            .catch(error => {
+                console.error('Error saving FR selection:', error);
+                // Revert checkbox state on error
+                const checkbox = document.getElementById(`fr_${frId}`);
+                if (checkbox) {
+                    checkbox.checked = !isSelected;
+                    const badge = checkbox.closest('.card-body').querySelector('.badge');
+                    if (badge) {
+                        badge.className = `badge ${!isSelected ? 'bg-success' : 'bg-secondary'}`;
+                        badge.textContent = !isSelected ? 'Selected' : 'Not Selected';
+                    }
+                }
+                showNotification('error', 'Lỗi!', 'Đã xảy ra lỗi khi lưu lựa chọn FR.');
+            });
+    }
+
     function saveFRSelections() {
         const selectedFRs = Array.from(document.querySelectorAll('.fr-checkbox:checked'))
             .map(checkbox => checkbox.value);
@@ -2970,6 +3642,8 @@
                     showNotification('success', 'Thành công!', `Đã lưu ${selectedFRs.length} Functional Requirements thành công (${data.updated_count} bản ghi được cập nhật).`);
                     // Mark that selections have been saved (but keep button visible for additional selections)
                     window.frSelectionsSaved = true;
+                    // Cập nhật lock status cho các step
+                    updateStepLocks();
 
                     // Ensure cached data is marked as fresh after saving selections
                     // This prevents unnecessary re-analysis on page refresh

@@ -40,8 +40,11 @@
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h5 class="mb-0"><i class="bi bi-list-check"></i> Test Cases Đã Tạo</h5>
             <div>
-                <button class="btn btn-sm btn-primary me-2" onclick="submitSelectedTestCases()" id="submitSelectedTestCasesBtn">
-                    <i class="bi bi-check-circle"></i> Xác Nhận Chọn Test Cases (<span id="selectedTestCasesCount">0</span>)
+                <span class="badge bg-info me-2" style="font-size: 0.9rem; padding: 0.5rem 1rem;">
+                    <i class="bi bi-check-circle"></i> Đã chọn: <span id="selectedTestCasesCount">0</span>
+                </span>
+                <button class="btn btn-sm btn-primary me-2" onclick="submitSelectedTestCases()" id="submitSelectedTestCasesBtn" style="display: none;">
+                    <i class="bi bi-check-circle"></i> Xác Nhận Chọn Test Cases (<span id="selectedTestCasesCountBtn">0</span>)
                 </button>
                 <button class="btn btn-sm btn-success me-2" onclick="quickSelectTestCases()" id="quickSelectTestCasesBtn">
                     <i class="bi bi-check2-all"></i> Chọn Tất Cả
@@ -49,9 +52,9 @@
                 <button class="btn btn-sm btn-outline-secondary me-2" onclick="clearSelectedTestCases()" id="clearSelectedTestCasesBtn">
                     <i class="bi bi-x-circle"></i> Bỏ Chọn Tất Cả
                 </button>
-                <button class="btn btn-sm btn-outline-primary" onclick="refreshTestCases()" id="refreshTestCasesBtn">
+                <!-- <button class="btn btn-sm btn-outline-primary" onclick="refreshTestCases()" id="refreshTestCasesBtn">
                     <i class="bi bi-arrow-clockwise"></i> Làm mới
-                </button>
+                </button> -->
             </div>
         </div>
         <div class="table-responsive">
@@ -61,10 +64,7 @@
                         <th style="width: 50px;">
                             <input type="checkbox" id="selectAllTestCases" onchange="toggleAllTestCases(this)" title="Chọn/Bỏ chọn tất cả">
                         </th>
-                        <th style="width: 50px;">#</th>
                         <th style="width: 120px;">Test Case ID</th>
-                        <th style="width: 200px;">Request URL</th>
-                        <th style="width: 180px;">Headers</th>
                         <th>Test Case Name</th>
                         <th style="width: 150px;">Category</th>
                         <th style="width: 130px;">Expected Status</th>
@@ -117,14 +117,18 @@
                     <p class="mb-0" id="testCaseDetailName">-</p>
                 </div>
                 
+                <div class="mb-3">
+                    <strong><i class="bi bi-link-45deg"></i> API Request:</strong>
+                    <div class="d-flex align-items-center gap-2 mt-2">
+                        <span class="badge bg-info fs-7 px-2 py-1" id="testCaseDetailMethod" style="min-width: 40px; text-align: center;">-</span>
+                        <code class="text-info flex-grow-1" id="testCaseDetailEndpoint" style="font-size: 0.95rem; word-break: break-all;">-</code>
+                    </div>
+                </div>
+                
                 <div class="row mb-3">
                     <div class="col-md-6">
-                        <strong><i class="bi bi-link-45deg"></i> Endpoint:</strong>
-                        <p class="mb-0"><code class="text-info" id="testCaseDetailEndpoint">-</code></p>
-                    </div>
-                    <div class="col-md-6">
                         <strong><i class="bi bi-check-circle"></i> Expected Status Code:</strong>
-                        <p class="mb-0"><span class="badge bg-success" id="testCaseDetailStatus">-</span></p>
+                        <p class="mb-0 mt-2"><span class="badge bg-success fs-6 px-3 py-2" id="testCaseDetailStatus">-</span></p>
                     </div>
                 </div>
                 

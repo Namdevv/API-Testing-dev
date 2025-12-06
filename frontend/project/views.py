@@ -2768,9 +2768,38 @@ def select_fr_info(request, project_uuid):
 @require_http_methods(["GET"])
 def check_test_suite_exists(request, project_uuid):
     """Check if test suite already exists for this project"""
+    from .models import FunctionalRequirement
+    
     project = get_object_or_404(UserProject, uuid=project_uuid, user=request.user)
     
     try:
+        # Get currently selected FRs
+        currently_selected_frs = set(
+            str(fr_id) for fr_id in 
+            FunctionalRequirement.objects.filter(
+                project=project,
+                is_selected=True
+            ).values_list('fr_info_id', flat=True)
+        )
+        
+        # Get the FR selection that was used when test cases were last generated
+        last_selected_fr_ids = set(project.last_selected_fr_ids or [])
+        
+        # Compare current selection with last selection
+        # If they differ, clear existing test cases to ensure test cases match current FR selection
+        if currently_selected_frs != last_selected_fr_ids:
+            deleted_count = GeneratedTestCase.objects.filter(project=project).delete()[0]
+            # Update last_selected_fr_ids to current selection
+            project.last_selected_fr_ids = list(currently_selected_frs)
+            project.save(update_fields=['last_selected_fr_ids'])
+            
+            if DEBUG:
+                print(f"=== FR SELECTION CHANGED ===")
+                print(f"Previous selection: {last_selected_fr_ids}")
+                print(f"Current selection: {currently_selected_frs}")
+                print(f"Cleared {deleted_count} existing test cases")
+                print(f"===========================")
+        
         # Check if test cases exist in database
         test_cases_count = GeneratedTestCase.objects.filter(project=project).count()
         
@@ -2778,6 +2807,8 @@ def check_test_suite_exists(request, project_uuid):
             print(f"=== CHECK TEST SUITE EXISTS ===")
             print(f"Project UUID: {project_uuid}")
             print(f"Test cases count: {test_cases_count}")
+            print(f"Current FR selection: {currently_selected_frs}")
+            print(f"Last saved FR selection: {last_selected_fr_ids}")
             print(f"==============================")
         
         exists = test_cases_count > 0
@@ -3066,6 +3097,24 @@ def fetch_and_save_test_cases_from_api(project):
                 project=project,
                 description=f"Generated {saved_count} test cases"
             )
+            
+            # Save the current FR selection after successfully saving test cases
+            # This ensures we can compare later if FR selection changes
+            from .models import FunctionalRequirement
+            currently_selected_frs = [
+                str(fr_id) for fr_id in 
+                FunctionalRequirement.objects.filter(
+                    project=project,
+                    is_selected=True
+                ).values_list('fr_info_id', flat=True)
+            ]
+            project.last_selected_fr_ids = currently_selected_frs
+            project.save(update_fields=['last_selected_fr_ids'])
+            
+            if DEBUG:
+                print(f"=== SAVED FR SELECTION ===")
+                print(f"FR IDs: {currently_selected_frs}")
+                print(f"===========================")
         
         return True, saved_count
         
