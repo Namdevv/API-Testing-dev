@@ -151,6 +151,8 @@ def home(request):
     
     # Weekly activity (last 7 days)
     last_7_days_activities = sum(item['total'] for item in request_frequency_data[-7:])
+    avg_daily_7_days = round(last_7_days_activities / 7, 1) if last_7_days_activities > 0 else 0
+    max_daily_7_days = max(item['total'] for item in request_frequency_data[-7:]) if request_frequency_data[-7:] else 0
     
     context = {
         'current_username': current_username,
@@ -184,6 +186,8 @@ def home(request):
         'avg_daily_activities': avg_daily_activities,
         'max_daily_activities': max_daily_activities,
         'last_7_days_activities': last_7_days_activities,
+        'avg_daily_7_days': avg_daily_7_days,
+        'max_daily_7_days': max_daily_7_days,
     }
     
     return render(request, 'main/home.html', context)
