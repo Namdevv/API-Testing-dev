@@ -131,6 +131,54 @@
   font-weight: 600;
 }
 
+/* Locked/Disabled step */
+.step.locked,
+.step.disabled {
+  opacity: 0.5;
+  cursor: not-allowed !important;
+  pointer-events: auto; /* Vẫn cho phép click để hiển thị thông báo */
+}
+
+.step.locked .step-icon,
+.step.disabled .step-icon {
+  background: linear-gradient(135deg, #e0e0e0 0%, #d0d0d0 100%);
+  color: #adb5bd;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  position: relative;
+}
+
+.step.locked .step-icon::after,
+.step.disabled .step-icon::after {
+  content: '🔒';
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  width: 16px;
+  height: 16px;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.step.locked p,
+.step.disabled p {
+  color: #adb5bd;
+  font-weight: 500;
+}
+
+.step.locked:hover .step-icon,
+.step.disabled:hover .step-icon {
+  transform: scale(1);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.step.locked:hover p,
+.step.disabled:hover p {
+  transform: translateY(0);
+  color: #adb5bd;
+}
+
 /* Hover effect */
 .step:hover .step-icon {
   transform: scale(1.08);

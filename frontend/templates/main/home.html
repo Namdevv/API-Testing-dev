@@ -134,15 +134,15 @@
         <div class="card-header d-flex align-items-center justify-content-between">
           <div>
             <h5 class="card-title m-0 me-2">Request Frequency Dashboard</h5>
-            <p class="text-body-secondary mb-0">Tần suất hoạt động trong 30 ngày qua</p>
+            <p class="text-body-secondary mb-0" id="frequencyDescription">Tần suất hoạt động trong 7 ngày qua</p>
           </div>
           <div class="dropdown">
             <button class="btn text-body-secondary p-0" type="button" id="requestFrequency" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
               <i class="icon-base bx bx-dots-vertical-rounded icon-lg"></i>
             </button>
             <div class="dropdown-menu dropdown-menu-end" aria-labelledby="requestFrequency">
-              <a class="dropdown-item" href="javascript:void(0);">Last 30 Days</a>
-              <a class="dropdown-item" href="javascript:void(0);">Last 7 Days</a>
+              <a class="dropdown-item frequency-filter" href="javascript:void(0);" data-days="7">Last 7 Days</a>
+              <a class="dropdown-item frequency-filter" href="javascript:void(0);" data-days="30">Last 30 Days</a>
             </div>
           </div>
         </div>
@@ -157,7 +157,7 @@
                 </div>
                 <div>
                   <p class="mb-0 text-body-secondary">Total Activities</p>
-                  <h4 class="mb-0">{{ total_activities_30_days }}</h4>
+                  <h4 class="mb-0" id="statTotalActivities">{{ last_7_days_activities }}</h4>
                 </div>
               </div>
             </div>
@@ -170,7 +170,7 @@
                 </div>
                 <div>
                   <p class="mb-0 text-body-secondary">Avg Daily</p>
-                  <h4 class="mb-0">{{ avg_daily_activities }}</h4>
+                  <h4 class="mb-0" id="statAvgDaily">{{ avg_daily_7_days }}</h4>
                 </div>
               </div>
             </div>
@@ -183,7 +183,7 @@
                 </div>
                 <div>
                   <p class="mb-0 text-body-secondary">Peak Day</p>
-                  <h4 class="mb-0">{{ max_daily_activities }}</h4>
+                  <h4 class="mb-0" id="statPeakDay">{{ max_daily_7_days }}</h4>
                 </div>
               </div>
             </div>
@@ -195,8 +195,8 @@
                   </div>
                 </div>
                 <div>
-                  <p class="mb-0 text-body-secondary">Last 7 Days</p>
-                  <h4 class="mb-0">{{ last_7_days_activities }}</h4>
+                  <p class="mb-0 text-body-secondary">Period</p>
+                  <h4 class="mb-0" id="statPeriod">7 Days</h4>
                 </div>
               </div>
             </div>
@@ -204,14 +204,14 @@
           <!-- <div class="alert alert-info mb-0">
             <small><i class="icon-base bx bx-info-circle"></i> <strong>Lưu ý:</strong> Dữ liệu được cập nhật theo thời gian thực. Nếu vừa tạo project/upload document/execute test, vui lòng <a href="javascript:location.reload();" class="alert-link">refresh trang</a> để xem dữ liệu mới nhất.</small>
           </div> -->
-          {% if total_activities_30_days > 0 %}
+          {% if total_activities_30_days > 0 or last_7_days_activities > 0 %}
             <div id="requestFrequencyChart" style="min-height: 350px;"></div>
           {% else %}
             <div class="d-flex align-items-center justify-content-center" style="min-height: 350px;">
               <div class="text-center">
                 <i class="icon-base bx bx-bar-chart-alt-2 icon-5x text-body-secondary mb-3"></i>
                 <h5 class="text-body-secondary">No Data Available</h5>
-                <p class="text-body-secondary mb-0">Chưa có hoạt động nào trong 30 ngày qua</p>
+                <p class="text-body-secondary mb-0">Chưa có hoạt động nào trong 7 ngày qua</p>
               </div>
             </div>
           {% endif %}
@@ -489,7 +489,36 @@
 
 {{ request_frequency_data|json_script:"request-frequency-data" }}
 <script>
-function initRequestFrequencyChart() {
+// Global variables to store data and chart instance
+let allFrequencyData = [];
+let currentDaysFilter = 7; // Default to 7 days
+let chartInstance = null;
+
+function updateStatistics(filteredData) {
+  if (!filteredData || filteredData.length === 0) {
+    document.getElementById('statTotalActivities').textContent = '0';
+    document.getElementById('statAvgDaily').textContent = '0';
+    document.getElementById('statPeakDay').textContent = '0';
+    return;
+  }
+  
+  const totalActivities = filteredData.reduce((sum, item) => sum + item.total, 0);
+  const avgDaily = (totalActivities / filteredData.length).toFixed(1);
+  const peakDay = Math.max(...filteredData.map(item => item.total));
+  
+  document.getElementById('statTotalActivities').textContent = totalActivities;
+  document.getElementById('statAvgDaily').textContent = avgDaily;
+  document.getElementById('statPeakDay').textContent = peakDay;
+  document.getElementById('statPeriod').textContent = currentDaysFilter + ' Days';
+  
+  // Update description
+  const descriptionEl = document.getElementById('frequencyDescription');
+  if (descriptionEl) {
+    descriptionEl.textContent = `Tần suất hoạt động trong ${currentDaysFilter} ngày qua`;
+  }
+}
+
+function initRequestFrequencyChart(days = 7) {
   // Check if ApexCharts is loaded
   if (typeof ApexCharts === 'undefined') {
     console.error('ApexCharts is not loaded');
@@ -504,23 +533,25 @@ function initRequestFrequencyChart() {
   }
   
   try {
-    const frequencyData = JSON.parse(dataScript.textContent);
+    // Parse all data once and store globally
+    if (allFrequencyData.length === 0) {
+      allFrequencyData = JSON.parse(dataScript.textContent);
+    }
     
-    console.log('Request Frequency Data:', frequencyData);
-    console.log('Data Length:', frequencyData ? frequencyData.length : 0);
-    
-    if (!frequencyData || frequencyData.length === 0) {
+    if (!allFrequencyData || allFrequencyData.length === 0) {
       console.warn('No frequency data available');
       return;
     }
     
-    // Extract data for chart - only Total Activities (like the example image)
-    const dates = frequencyData.map(item => item.date_display);
-    const totals = frequencyData.map(item => item.total);
+    // Filter data based on days (get last N days)
+    const filteredData = allFrequencyData.slice(-days);
     
-    console.log('Dates:', dates);
-    console.log('Totals:', totals);
-    console.log('Total Activities 30 Days:', {{ total_activities_30_days }});
+    // Extract data for chart
+    const dates = filteredData.map(item => item.date_display);
+    const totals = filteredData.map(item => item.total);
+    
+    // Update statistics
+    updateStatistics(filteredData);
     
     const options = {
       series: [
@@ -603,12 +634,11 @@ function initRequestFrequencyChart() {
     // Render chart
     const chartEl = document.querySelector('#requestFrequencyChart');
     if (chartEl) {
-      if (chartEl._apexchart) {
-        chartEl._apexchart.destroy();
+      if (chartInstance) {
+        chartInstance.destroy();
       }
-      const chart = new ApexCharts(chartEl, options);
-      chartEl._apexchart = chart;
-      chart.render();
+      chartInstance = new ApexCharts(chartEl, options);
+      chartInstance.render();
     } else {
       console.error('Chart element not found');
     }
@@ -619,20 +649,53 @@ function initRequestFrequencyChart() {
 
 // Load ApexCharts and initialize chart
 document.addEventListener('DOMContentLoaded', function () {
-  // Check if ApexCharts is already loaded
-  if (typeof ApexCharts !== 'undefined') {
-    initRequestFrequencyChart();
-  } else {
-    // Load ApexCharts dynamically
-    const script = document.createElement('script');
-    script.src = 'https://cdn.jsdelivr.net/npm/apexcharts';
-    script.onload = function() {
-      initRequestFrequencyChart();
-    };
-    script.onerror = function() {
-      console.error('Failed to load ApexCharts library');
-    };
-    document.head.appendChild(script);
+  // Initialize chart with default 7 days
+  function loadChart() {
+    if (typeof ApexCharts !== 'undefined') {
+      initRequestFrequencyChart(currentDaysFilter);
+    } else {
+      // Load ApexCharts dynamically
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/apexcharts';
+      script.onload = function() {
+        initRequestFrequencyChart(currentDaysFilter);
+      };
+      script.onerror = function() {
+        console.error('Failed to load ApexCharts library');
+      };
+      document.head.appendChild(script);
+    }
+  }
+  
+  loadChart();
+  
+  // Add event listeners for dropdown items
+  const filterItems = document.querySelectorAll('.frequency-filter');
+  filterItems.forEach(item => {
+    item.addEventListener('click', function(e) {
+      e.preventDefault();
+      const days = parseInt(this.getAttribute('data-days'));
+      currentDaysFilter = days;
+      
+      // Update active state in dropdown
+      filterItems.forEach(i => i.classList.remove('active'));
+      this.classList.add('active');
+      
+      // Reinitialize chart with new filter
+      initRequestFrequencyChart(days);
+      
+      // Close dropdown
+      const dropdown = bootstrap.Dropdown.getInstance(document.getElementById('requestFrequency'));
+      if (dropdown) {
+        dropdown.hide();
+      }
+    });
+  });
+  
+  // Set default active state (7 days)
+  const defaultItem = document.querySelector('.frequency-filter[data-days="7"]');
+  if (defaultItem) {
+    defaultItem.classList.add('active');
   }
 });
 </script>
