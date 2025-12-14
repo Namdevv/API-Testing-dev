@@ -1,6 +1,5 @@
 # src.graph.nodes.testcase_generator.document_standardizer
 import json
-import logging
 import re
 from typing import Optional
 
@@ -10,6 +9,7 @@ from src import models
 from src.base.service.base_agent_service import BaseAgentService
 from src.enums.enums import LanguageEnum
 from src.models import TestcasesGenStateModel
+from src.settings import logger
 
 
 def extract_api_info(text: str):
@@ -39,9 +39,9 @@ def extract_api_info(text: str):
         try:
             headers = json.loads(headers_match.group(1))
         except Exception as e:
-            logging.warning(f"Error parsing headers JSON: {e}")
+            logger.warning(f"Error parsing headers JSON: {e}")
 
-    logging.info(
+    logger.info(
         f"Extracted API Info - Method: {method}, Endpoint: {endpoint}, Headers: {headers}"
     )
     return models.ApiInfoModel(method=method, url=endpoint, headers=headers)
@@ -80,7 +80,7 @@ class DocumentStandardizer(BaseAgentService):
                 human=f"<Raw Data>{collected_documents[current_fr_id]}</Raw Data>",
                 no_cache=no_cache,
             ).content
-            logging.debug(f"Standardized Documents: \n{standardized_documents}")
+            logger.debug(f"Standardized Documents: \n{standardized_documents}")
             try:
                 api_info = extract_api_info(standardized_documents)
                 break
@@ -91,14 +91,14 @@ class DocumentStandardizer(BaseAgentService):
                 if retry_count > 3:
                     raise e
 
-                logging.warning(f"API info extraction error: {e}. Retrying...")
+                logger.warning(f"API info extraction error: {e}. Retrying...")
                 continue
 
         state.extra_parameters["standardized_documents"][
             current_fr_id
         ] = standardized_documents
         state.test_case_infos.setdefault(current_fr_id, {})["api_info"] = api_info
-        logging.info("Document standardization completed!")
+        logger.info("Document standardization completed!")
         return state
 
 

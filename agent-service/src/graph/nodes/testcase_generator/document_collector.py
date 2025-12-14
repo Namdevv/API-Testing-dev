@@ -1,5 +1,4 @@
 # src.graph.nodes.testcase_generator.document_collector
-import logging
 from typing import Any, Dict, Optional
 
 from langchain_core.output_parsers import JsonOutputParser
@@ -11,7 +10,7 @@ from src.base.service.base_agent_service import BaseAgentService
 from src.enums.enums import LanguageEnum
 from src.graph.tools.document.document_search import search_documents
 from src.models import TestcasesGenStateModel
-from src.settings import get_db_engine
+from src.settings import get_db_engine, logger
 
 
 class DocumentCollector(BaseAgentService):
@@ -42,9 +41,9 @@ class DocumentCollector(BaseAgentService):
         input_data = (
             f"<Target Function>'{current_fr}'</Target Function>\n{all_docs_toc}"
         )
-        logging.debug(f"Document Collector Input Data: \n{input_data}")
+        logger.debug(f"Document Collector Input Data: \n{input_data}")
         response = self.run(human=input_data).content
-        logging.debug(f"Document Collector Raw Response: \n{response}")
+        logger.debug(f"Document Collector Raw Response: \n{response}")
         json_parser = JsonOutputParser()
         response = json_parser.parse(response)
 
@@ -74,7 +73,7 @@ class DocumentCollector(BaseAgentService):
                         session=session,
                     )
                     if not content:
-                        logging.warning(
+                        logger.warning(
                             f"Heading '{heading}' not found in document '{doc_name}'! Searching by vector!"
                         )
                         content = search_documents(
@@ -93,8 +92,8 @@ class DocumentCollector(BaseAgentService):
         state.extra_parameters["collected_documents"][
             current_fr_id
         ] = collected_documents
-        logging.info("Document collection completed!")
-        logging.debug(f"Collected Documents: \n{collected_documents}")
+        logger.info("Document collection completed!")
+        logger.debug(f"Collected Documents: \n{collected_documents}")
         return state
 
 
