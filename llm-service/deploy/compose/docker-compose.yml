@@ -37,6 +37,8 @@ services:
       - "8001:8000"
     volumes:
       - ./models:/root/.cache/huggingface/hub/
+    environment:
+      - VLLM_ALLOW_RUNTIME_LORA_UPDATING=true
     command: >
       --model unsloth/Qwen2.5-3B-Instruct-bnb-4bit
       --dtype bfloat16

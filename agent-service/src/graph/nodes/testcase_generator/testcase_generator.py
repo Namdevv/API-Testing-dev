@@ -1,6 +1,4 @@
 # src.graph.nodes.testcase_generator.testcase_generator
-import json
-import logging
 from typing import Any, Dict
 
 from langchain_core.output_parsers import JsonOutputParser
@@ -10,6 +8,7 @@ from src import repositories
 from src.base.service.base_agent_service import BaseAgentService
 from src.enums.enums import LanguageEnum
 from src.models import TestcasesGenStateModel
+from src.settings import logger
 
 
 class TestCaseGenerator(BaseAgentService):
@@ -56,6 +55,8 @@ class TestCaseGenerator(BaseAgentService):
                 human=standardized_documents, no_cache=no_cache
             ).content
 
+            logger.debug(f"Generated Testcases Raw Output: \n{generated_testcases}")
+
             try:
                 generated_testcases = self.extract_clean_json_from_text(
                     generated_testcases
@@ -82,7 +83,7 @@ class TestCaseGenerator(BaseAgentService):
                 if retry_count > 3:
                     raise e
 
-                logging.warning(f"Test case generation error: {e}. Retrying...")
+                logger.warning(f"Test case generation error: {e}. Retrying...")
                 continue
 
         test_suite = repositories.TestSuiteRepository(
@@ -131,7 +132,7 @@ class TestCaseGenerator(BaseAgentService):
             "test_cases": testcases,
         }
 
-        logging.info(
+        logger.info(
             f"Generated test cases for FR group: {current_fr.get_fr_group_name()}, total test cases: {len(testcases)}"
         )
         return state

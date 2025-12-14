@@ -3,19 +3,8 @@ services:
     image: agent-service
     restart: on-failure:5
     volumes:
-      - backend_data:/backend_data
-      - ./env/:/backend_data/env/
-      - ./logs/:/backend_data/logs/
-    environment:
-      - POSTGRES_DB=${POSTGRES_DB:-backend_database}
-      - POSTGRES_USER=${POSTGRES_USER:-admin}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-admin}
-      - POSTGRES_HOST=${POSTGRES_HOST:-database}
-      - POSTGRES_PORT=${POSTGRES_PORT:-5432}
-      - REDIS_HOST=${REDIS_HOST:-redis}
-      - REDIS_PORT=${REDIS_PORT:-6379}
-      - REDIS_DB=${REDIS_DB:-0}
-      - GOOGLE_API_KEY
+      - ./.env:/app/.env
+      - ./logs:/app/logs
     depends_on:
       - database
     deploy:
