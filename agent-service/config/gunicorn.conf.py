@@ -44,7 +44,7 @@ worker_connections = 1000
 # Logging configuration.
 accesslog = "-"  # Log access to stdout
 errorlog = "-"  # Log errors to stdout
-loglevel = "info"  # Logging level
+loglevel = "debug"  # Logging level
 
 # Monitoring (uncomment to enable statsd).
 # statsd_host = 'localhost:8125'
