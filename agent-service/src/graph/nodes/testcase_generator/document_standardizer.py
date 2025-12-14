@@ -51,8 +51,6 @@ class DocumentStandardizer(BaseAgentService):
     llm_model: str = "gemini-2.5-flash"
     llm_temperature: float = 0
 
-    llm_top_p: Optional[float] = 0.1
-
     llm_thinking_budget: Optional[int] = -1
 
     path_to_prompt: dict[LanguageEnum, str] = {
