@@ -15,9 +15,9 @@ services:
         reservations:
           cpus: '2.00'
           memory: 2GB
-          devices:
-            - driver: nvidia
-              capabilities: [gpu]
+          # devices:
+          #   - driver: nvidia
+          #     capabilities: [gpu]
     labels:
       - "traefik.enable=true"
       # Docs Router
