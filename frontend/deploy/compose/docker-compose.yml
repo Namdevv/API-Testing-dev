@@ -25,6 +25,10 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    entrypoint: /bin/sh -c
+    command: >
+      "python manage.py migrate &&
+      python manage.py runserver 0.0.0.0:8001"
     volumes:
       - .:/app
       - ./static:/app/staticfiles
